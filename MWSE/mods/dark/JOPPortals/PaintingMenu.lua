@@ -93,7 +93,8 @@ function JoyOfPainting.Painting:paintingMenu()
     -- 1. Inserts buttons into the params table 'e'
     -- 2. Calls the original method with the edited params table
     log:debug("Replacing joyOfPainting.services.UIHelper.openPaintingMenu with patched version.")
-    UIHelper.openPaintingMenu = function(e) -- IGNORE THE IDE WARNING! Duplicate field is intentional
+---@diagnostic disable-next-line: duplicate-set-field
+    UIHelper.openPaintingMenu = function(e)
         log:debug("Adding buttons to the painting menu")
         e.buttons = e.buttons or {}
         log:trace("Original buttons:\n%s", function() return json.encode(e.buttons) end)

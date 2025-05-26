@@ -140,7 +140,7 @@ The chance of success is based on the strength of the soul and the enchanter's E
 
     log:trace("Showing enchant menu.")
     menu:updateLayout()
-    tes3ui.enterMenuMode(menu)
+    tes3ui.enterMenuMode(menu.id)
 end
 
 return EnchantMenu
