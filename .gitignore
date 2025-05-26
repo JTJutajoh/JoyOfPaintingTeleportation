@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+!.gitignore
+!MWSE/
+!MWSE/mods/
+!MWSE/mods/dark/
+!MWSE/mods/dark/**
