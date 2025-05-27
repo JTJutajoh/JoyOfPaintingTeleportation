@@ -1,19 +1,38 @@
-local log = mwse.Logger.new()
-log:trace("Initializing MCM config")
+---@type mwseLogger
+local log = mwse.Logger.new("JOP Teleportation")
+log:info("Initializing MCM config")
 
+---@class (exact) JOPT_Config
+---@field logLevel mwseLogger.logLevel|mwseLogger.logLevelString
+---@field minSoulStrength integer Minimum strength to filter soul gems using
+---@field baseChance number The base chance before all other contributions are added
+---@field optimalSoulValue integer Soul values below this incur a penalty to enchant chance
+---@field optimalEnchantLevel integer Enchant skill levels below this incur a penalty to enchant chance
+---@field minChance number Minimum 0-1 chance that enchanting will succeed
+
+---@type JOPT_Config
 local defaultConfig = {
     logLevel = "INFO",
+    minSoulStrength = 100,
     baseChance = 0.2,
     optimalSoulValue = 200,
     optimalEnchantLevel = 50,
     minChance = 0
 }
 
+---@type string
 local configPath = "JOP Teleportation"
 
-local config = mwse.loadConfig(configPath, defaultConfig)
+local config = mwse.loadConfig(configPath, defaultConfig) --[[@as JOPT_Config]]
+if not config then
+    log:error("Error loading mod config.")
+    return
+end
+log.level = config.logLevel
 
+---Creates the MCM for the mod
 local function registerModConfig()
+    ---@type mwseMCMTemplate
     local template = mwse.mcm.createTemplate({
         name = "Joy Of Painting Teleportation",
         config = config,
@@ -32,11 +51,11 @@ local function registerModConfig()
         description = "Set the log level.",
         configKey = "logLevel",
         options = {
-            { label = "TRACE", value = "TRACE"},
-            { label = "DEBUG", value = "DEBUG"},
-            { label = "INFO", value = "INFO"},
-            { label = "ERROR", value = "ERROR"},
-            { label = "NONE", value = "NONE"},
+            {  label = "TRACE", value = "TRACE" },
+            {  label = "DEBUG", value = "DEBUG" },
+            {  label = "INFO", value = "INFO" },
+            {  label = "ERROR", value = "ERROR" },
+            {  label = "NONE", value = "NONE" },
         },
         callback = function(self)
             log.level = self.variable.value
@@ -47,6 +66,14 @@ local function registerModConfig()
         label = "Base enchant success chance",
         configKey = "baseChance",
         description = "The minimum chance enchanting a frame will work, before any modifiers applied.\nNote that the final chance may be lower than this value if the soul is weak and/or Enchant skill is low."
+    })
+
+    page:createSlider({
+        label = "Minimum soul strength",
+        configKey = "minSoulStrength",
+        max = 1600,
+        step = 10,
+        description = "The minimum strength of a trapped soul for a soul gem to be valid for enchanting."
     })
 
     page:createSlider({
