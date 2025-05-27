@@ -4,7 +4,6 @@ if not config then return end
 ---@type mwseLogger
 local log = mwse.Logger.new()
 
----@type EnchantMenu
 local EnchantMenu = include("dark.JOPTeleportation.EnchantMenu")
 
 ---@type JOP.Painting
@@ -28,13 +27,10 @@ function Painting:paintingMenu()
     local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
     if menu then
         log:trace("Found JOP.NamePaintingMenu")
-        if not EnchantMenu.isEnchanted(self) then
-            log:trace("Painting is NOT enchanted, adding the enchant UI block to the name painting menu")
-            EnchantMenu:createEnchantBlock(menu, self)
-        else
-            log:trace("Painting is enchanted, adding the teleport UI block to the name painting menu")
-            EnchantMenu:createTeleportBlock(menu, self)
-        end
+        local enchantMenu = EnchantMenu:new {
+            painting = self,
+            parent = menu,
+        }
     else
         log:error("Failed to find the name painting menu after it should have been created.")
     end
