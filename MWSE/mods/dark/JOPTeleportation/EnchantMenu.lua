@@ -9,17 +9,72 @@ local log = mwse.Logger.new()
 -- local JoyOfPainting = require("mer.joyOfPainting")
 -- if not JoyOfPainting then return end
 
+PaintingRegistry = require("dark.JOPTeleportation.PaintingRegistry")
+
 ---@alias JOPT.tes3itemChildren tes3item|tes3alchemy|tes3apparatus|tes3armor|tes3book|tes3clothing|tes3ingredient|tes3light|tes3lockpick|tes3misc|tes3probe|tes3repairTool|tes3weapon
 ---@alias JOPT.tes3soulOwner tes3actor|tes3container|tes3containerInstance|tes3creature|tes3creatureInstance|tes3npc|tes3npcInstance
 
+--- An instance of the enchant menu that has been added to a UI element.<br>
+--- Stores data needed to actually perform the enchantment
+---@class JOPT.EnchantMenu
+---@field chosenSoulGem JOPT.EnchantMenu.SoulGem?
+---@field painting JOP.Painting
+
+--- All necessary data related to a soul gem to keep track of which gem has been chosen for enchanting
 ---@class JOPT.EnchantMenu.SoulGem
 ---@field item JOPT.tes3itemChildren
 ---@field itemData tes3itemData?
 ---@field reference tes3reference
 
----@class JOPT.EnchantMenu
----@field chosenSoulGem JOPT.EnchantMenu.SoulGem
----@field painting JOP.Painting
+--- Given a painting or a container for paintings (frames, easels, sketchbook, etc.) returns the unique ID of the specific painting
+---@param item JOPT.tes3itemChildren|JOP.Painting|nil The painting, frame, easel, sketchbook, etc. that contains a painting
+---@return string? ID The paintingID for the painting if one exists, otherwise nil
+---@see JOP.Painting.data.paintingId
+function EnchantMenu.getPaintingID(item)
+    if not item then
+        log:warn("Tried to get painting ID from nothing")
+        return nil
+    end
+    log:trace("Fetching painting ID from %s", item.name)
+
+    -- Paintings have their ID set as the texture's filename ending with .dds,
+    -- so check a substring of the paintingId to make sure that it's the ID we want.
+    if item and item.data and string.sub(item.data.paintingId, -4, -1) == ".dds" then
+        log:trace("Found painting ID: %s", item.data.paintingId)
+        return item.data.paintingId
+    end
+
+    log:warn("Did not find any painting ID on %s", item.id)
+    return nil
+end
+
+--- Given a painting or a container for paintings (frames, easels, sketchbook, etc.) returns whether or not the painting is enchanted.<br>
+--- Currently just a wrapper for DataRegistry.isEnchanted
+---@param painting JOP.Painting
+---@return boolean enchanted
+function EnchantMenu.isEnchanted(painting)
+    ---@type boolean
+    local enchanted = PaintingRegistry.isEnchanted(EnchantMenu.getPaintingID(painting))
+
+    log:trace("Checking enchanted status of %s, result: %s", painting.item.name, enchanted)
+
+    return enchanted
+end
+
+--- Given a painting, mark it as enchanted in the DataRegistry
+---@param paintingHolder JOP.Painting|JOPT.tes3itemChildren A painting or an item that can contain a painting such as a frame or easel.
+---@return boolean success
+function EnchantMenu.enchant(paintingHolder)
+    local paintingId = EnchantMenu.getPaintingID(paintingHolder)
+    if paintingId then
+        PaintingRegistry.storePaintingIsEnchanted(paintingId, true)
+        log:debug("Set %s as enchanted", paintingHolder.item.name)
+        return true
+    else
+        log:warn("Failed to mark '%s' as enchanted, invalid paintingId", paintingHolder.id)
+        return false
+    end
+end
 
 ---@class JOPT.EnchantMenu.attemptEnchant.params
 ---@field soulGem JOPT.EnchantMenu.SoulGem
@@ -30,40 +85,39 @@ local log = mwse.Logger.new()
 ---@param e JOPT.EnchantMenu.attemptEnchant.params
 ---@return boolean enchanted
 function EnchantMenu.attemptEnchant(e)
-    log:trace("Enchant menu confirmed")
+    log:debug("Attempting to enchant")
 
     local soul = e.soulGem.itemData.soul.soul
     local chance = EnchantMenu.calcEnchantChance(soul)
+    log:debug("Enchant chance: %f", chance)
+    local roll = math.random()
+    log:debug("Rolled: %f", roll)
 
-    if chance >= math.random() then
-        tes3.messageBox("Successfully enchanted painting.")
-        e.painting.dataHolder.data.enchanted = true
-        tes3.playSound {
-            reference = tes3.player,
-            sound = "mysticism hit"
-        }
-        return true
-    else
-        tes3.messageBox("Enchantment failed!")
-        tes3.playSound {
-            reference = tes3.player,
-            sound = "miss"
-        }
-        return false
+    if chance >= roll then
+        if EnchantMenu.enchant(e.painting) then
+            log:info("Enchant success")
+            tes3.messageBox("Successfully enchanted painting.")
+            tes3.playSound {
+                reference = tes3.player,
+                sound = "mysticism hit"
+            }
+            return true
+        end
     end
-end
-
----@param painting JOP.Painting
----@return boolean enchanted
-function EnchantMenu.isEnchanted(painting)
-    return painting.dataHolder and painting.dataHolder.data and painting.dataHolder.data.enchanted
+    log:info("Enchant failed")
+    tes3.messageBox("Enchantment failed!")
+    tes3.playSound {
+        reference = tes3.player,
+        sound = "miss"
+    }
+    return false
 end
 
 ---@param location JOP.Painting.location
 function EnchantMenu.teleport(location)
-    log:trace("Attempting to teleport to painting")
+    log:debug("Attempting to teleport to painting")
     
-    if location.cellId and location.position and location.orientation then
+    if location and location.cellId and location.position and location.orientation then
         log:debug("Teleport destination location:\n%s", function() return json.encode(location) end)
         tes3.playSound {
             reference = tes3.player,
@@ -76,42 +130,54 @@ function EnchantMenu.teleport(location)
             orientation = location.orientation,
             teleportCompanions = true
         }
+        log:info("Trying to close menu(s)")
         tes3ui.leaveMenuMode()
         local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
-        if menu then menu:destroy() end
+        if menu then
+            log:debug("Closing instance of JOP.NamePaintingMenu")
+            menu:destroy()
+        end
     else
-        log:error("Failed to teleport to location: %s", json.encode(location))
+        log:error("Failed to teleport to location: %s", function() return json.encode(location or {}) end)
         tes3.messageBox("Teleport error (Check MWSE.log)")
     end
 end
 
----Given an input soul value from a soul gem, returns a 0-1 chance of enchantment success based on the soul value and the player's Enchant skill
+--- Given an input soul value from a soul gem, returns a 0-1 chance of enchantment success based on the soul value and the player's Enchant skill
 ---@param soulValue number
 ---@return number chance 0-1 chance of success
 function EnchantMenu.calcEnchantChance(soulValue)
+    log:trace("Calculating enchant chance")
+    log:trace("Base chance: %f", config.baseChance)
+    ---@type number
     local soulContribution = (1 - math.max(((config.optimalSoulValue - soulValue) / config.optimalSoulValue), 0))
+    log:trace("Soul contribution: %f", soulContribution)
+    ---@type number
     local skillContribution = math.max((-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel, -1)
+    log:trace("Skill contribution: %f", skillContribution)
+    log:trace("Minimum chance: %f", config.minChance)
     return math.max(config.baseChance + soulContribution + skillContribution, config.minChance)
 end
 
----Opens a CraftingFramework selection menu filtering for valid soul gems and returns the chosen soul gem
+--- Opens a CraftingFramework selection menu filtering for valid soul gems
+--- Calls the provided callback with the chosen soul gem as the argument, so that UI can be updated
 ---@param callback fun(chosenSoulGem: JOPT.EnchantMenu.SoulGem?)?
 function EnchantMenu.chooseSoulGem(callback)
     log:debug("Importing CraftingFramework")
-    local CraftingFramework = require("CraftingFramework")
-    if not CraftingFramework then
+    local InventorySelectMenu = require("CraftingFramework.carryableContainers.components.InventorySelectMenu")
+    if not InventorySelectMenu then
         log:error("CraftingFramework missing")
         return
     end
 
-    log:debug("Creating CraftingFramework.InventorySelectMenu to choose soul gem")
-    CraftingFramework.InventorySelectMenu.open {
+    log:info("Creating CraftingFramework InventorySelectMenu to choose soul gem")
+    InventorySelectMenu.open {
         title = "Select a soul gem",
         noResultsText = "No sufficiently filled soul gems found",
         callback = function(e)
             log:trace("Inventory select menu callback, result: %s", e.item.name)
             if e and e.itemData then
-                log:debug("Chose soul gem %s with soul %s of strength %i", e.item.name, e.itemData.soul, e.itemData.soul.soul)
+                log:info("Chose soul gem %s with soul %s of strength %i", e.item.name, e.itemData.soul, e.itemData.soul.soul)
                 ---@type JOPT.EnchantMenu.SoulGem?
                 local chosenSoulGem = {
                     item = e.item,
@@ -126,13 +192,13 @@ function EnchantMenu.chooseSoulGem(callback)
             end
         end,
         filter = function(e2)
-            log:debug("Filtering on %s", e2.item.id)
+            log:trace("Filtering on %s", e2.item.id)
             if not e2.itemData then
-                log:debug("No itemData")
+                log:trace("No itemData")
                 return false
             end
             if not e2.itemData.soul then
-                log:debug("No soul in itemData")
+                log:trace("No soul in itemData")
                 return false
             end
             if e2.itemData.soul.soul < config.minSoulStrength then
@@ -140,10 +206,11 @@ function EnchantMenu.chooseSoulGem(callback)
                 return false
             end
 
+            log:debug("Matched usable soul gem: %s", e2.item.id)
             return true
         end,
         noResultsCallback = function(e)
-            log:debug("No soul gems were found")
+            log:info("No soul gems were found")
             if callback then callback(nil) end
         end
     }
@@ -153,35 +220,72 @@ end
 ---@field parent tes3uiElement
 ---@field painting JOP.Painting
 
+--- Adds a block to a given UI parent for a given painting.<br>
+--- If the painting is already enchanted, it adds the teleport GUI. If not, it adds the enchantment GUI.
 ---@param e JOPT.EnchantMenu.params
----@return JOPT.EnchantMenu
+---@return JOPT.EnchantMenu 
 function EnchantMenu:new(e)
+    log:info("Creating EnchantMenu")
+    ---@type JOPT.EnchantMenu
     local enchantMenu = setmetatable({}, self)
+    enchantMenu.painting = e.painting
 
-    UIHelper = require("mer.joyOfPainting.services.UIHelper")
+    if not e.painting then
+        log:error("Couldn't create enchant menu, painting was nil")
+        return enchantMenu
+    end
+
+    log:trace("Including JOP UIHelper")
+    local UIHelper = require("mer.joyOfPainting.services.UIHelper")
     if not UIHelper then log:error("Failed to get JOP UIHelper.") end
 
     if EnchantMenu.isEnchanted(e.painting) then
         log:debug("Painting is enchanted, adding the teleport UI block to the name painting menu")
         EnchantMenu:createTeleportBlock {
             parent = e.parent,
-            painting = e.painting,
+            painting = enchantMenu.painting,
             teleportCallback = EnchantMenu.teleport
         }
     else
         log:debug("Painting is NOT enchanted, adding the enchant UI block to the name painting menu")
         EnchantMenu:createEnchantBlock {
             parent = e.parent,
-            painting = e.painting,
+            painting = enchantMenu.painting,
             enchantChanceTooltipCallback = function()
+                log:trace("Creating tooltip for enchant chance label")
                 UIHelper.createTooltipMenu {
                     header = "Chance of success",
                     text = "Based on the strength of the soul and the enchanter's Enchant skill (configurable in MCM).",
                 }
             end,
+            confirmEnchantTooltipCallback = function()
+                log:trace("Creating tooltip for enchant confirm button")
+                UIHelper.createTooltipMenu {
+                    header = "Enchant",
+                    text = "If successful, the painting will be magically linked to the exact spot where it was originally painted, allowing it to be used as a portal.",
+                }
+            end,
+            onEnchantSuccessCallback = function()
+                -- log:debug("Closing menu after successful enchantment")
+                -- local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
+                -- if menu then
+                --     menu:destroy()
+                --     tes3ui.leaveMenuMode()
+                -- end
+                log:debug("Painting successfully enchanted, adding the teleport UI block to the name painting menu")
+                EnchantMenu:createTeleportBlock {
+                    parent = e.parent,
+                    painting = enchantMenu.painting,
+                    teleportCallback = EnchantMenu.teleport
+                }
+            end,
+            -- onEnchantFailCallback = function()
+
+            -- end,
         }
     end
 
+    log:debug("Finished creating EnchantMenu")
     return enchantMenu
 end
 
@@ -189,15 +293,30 @@ end
 ---@field parent tes3uiElement
 ---@field painting JOP.Painting
 ---@field enchantChanceTooltipCallback function?
+---@field confirmEnchantTooltipCallback function?
+---@field onEnchantSuccessCallback function?
+---@field onEnchantFailCallback function?
 
+--- Creates and adds a UI block to a given parent for enchanting a painting
 ---@param e JOPT.EnchantMenu.createEnchantBlock.params
 function EnchantMenu:createEnchantBlock(e)
-    e.parent:createDivider()
+    log:debug("Creating enchant block, parent: %s", e.parent.name)
 
     ---@type JOPT.EnchantMenu.SoulGem?
     local soulGem
 
-    local headerRow = e.parent:createBlock {}
+    local block_outer = e.parent:createBlock()
+    block_outer.autoHeight = true
+    block_outer.widthProportional = 1.0
+    block_outer.flowDirection = "top_to_bottom"
+    block_outer.childAlignX = 0.5
+    block_outer.borderTop = 6
+    block_outer.borderLeft = 50
+    block_outer.borderRight = 50
+    block_outer:createDivider()
+
+    --header
+    local headerRow = block_outer:createBlock {}
     headerRow.widthProportional = 1.0
     headerRow.autoHeight = true
     headerRow.flowDirection = "left_to_right"
@@ -214,7 +333,8 @@ function EnchantMenu:createEnchantBlock(e)
     enchantChance.childAlignX = 1.0
     enchantChance.autoWidth = true
 
-    local border = e.parent:createThinBorder {}
+    --body
+    local border = block_outer:createThinBorder {}
     border.flowDirection = "left_to_right"
     border.widthProportional = 1.0
     border.autoHeight = true
@@ -227,6 +347,7 @@ function EnchantMenu:createEnchantBlock(e)
 
     border:createLabel { text = "Soul" }
 
+    --soul gem
     local item_border = border:createThinBorder()
     item_border.height = 48
     item_border.width = 48
@@ -237,15 +358,12 @@ function EnchantMenu:createEnchantBlock(e)
     item_border.paddingAllSides = 4
 
     local item_icon = item_border:createImage()
-    -- item_icon.widthProportional = 1.0
-    -- item_icon.heightProportional = 1.0
-    -- item_icon.autoHeight = true
-    -- item_icon.autoWidth = true
+    item_icon.widthProportional = 1.0
+    item_icon.heightProportional = 1.0
     item_icon.width = 40
     item_icon.height = 40
-    item_icon.scaleMode = false
-    -- item_icon.childAlignX = 0.5
-    -- item_icon.childAlignY = 0.5
+    item_icon.scaleMode = true
+    item_icon.alpha = 0
 
     local noSoulText = "Select a sufficiently filled soul gem"
     local soulDetails = border:createLabel { text = noSoulText }
@@ -253,29 +371,40 @@ function EnchantMenu:createEnchantBlock(e)
     soulDetails.autoHeight = true
     soulDetails.borderLeft = 8
 
-    local button_block = e.parent:createBlock {}
-    button_block.widthProportional = 1.0
-    button_block.autoHeight = true
-    button_block.childAlignX = 1.0
-
-    local button_confirm = button_block:createButton { text = "Enchant" }
-    button_confirm.disabled = soulGem == nil
+    -- Define this early so that it can be referenced in the closure below
+    local button_confirm
 
     item_border:register("mouseClick", function()
+        log:trace("Item border clicked, choosing soul gem")
         EnchantMenu.chooseSoulGem(function(chosenSoulGem)
             soulGem = chosenSoulGem
-
             log:trace("Chose soul gem: %s", soulGem)
+
             if soulGem and soulGem.itemData and soulGem.itemData.soul then
                 log:debug("Valid soul gem chosen, updating UI elements")
-                item_icon.contentPath = "Data Files\\icons\\" .. soulGem.item.icon
+
+                local iconPath = "Data Files\\icons\\" .. soulGem.item.icon
+                log:trace("Setting item icon to %s", iconPath)
+                item_icon.contentPath = iconPath
+                item_icon.alpha = 1
+
                 local soul = soulGem.itemData.soul --[[@as JOPT.tes3soulOwner]]
-                soulDetails.text = string.format("%s (%s)\nStrength: %i", soulGem.item.name, soul.name, soul.soul)
-                enchantChance.text = string.format("Chance: %i%%", EnchantMenu.calcEnchantChance(soul.soul) * 100)
+                log:trace("Contained soul: %s", soul.name)
+
+                local details = string.format("%s (%s)\nStrength: %i", soulGem.item.name, soul.name, soul.soul)
+                log:trace("Soul details: %s", details)
+                soulDetails.text = details
+                
+                local chance = EnchantMenu.calcEnchantChance(soul.soul)
+                log:trace("Enchant chance: %f", chance)
+                enchantChance.text = string.format("Chance: %i%%", chance * 100)
+
+                log:trace("Enabling confirm button")
                 button_confirm.disabled = false
             else
                 log:debug("No valid soul gem chosen, clearing all UI elements")
                 item_icon.contentPath = nil
+                item_icon.alpha = 0
                 soulDetails.text = noSoulText
                 enchantChance.text = "Chance: 0%"
                 button_confirm.disabled = true
@@ -283,27 +412,37 @@ function EnchantMenu:createEnchantBlock(e)
         end)
     end)
 
+    --buttons
+    local button_block = block_outer:createBlock {}
+    button_block.widthProportional = 1.0
+    button_block.autoHeight = true
+    button_block.childAlignX = 1.0
+
+    button_confirm = button_block:createButton { text = "Enchant" }
+    button_confirm.disabled = true
     button_confirm:register("mouseClick", function()
         log:trace("Enchant button clicked")
         local enchanted = EnchantMenu.attemptEnchant {
             painting = e.painting,
             soulGem = soulGem
         }
+        log:debug("Clearing chosen soul gem")
+        soulGem = nil
+        item_icon.contentPath = nil
+        item_icon.alpha = 0
+        soulDetails.text = noSoulText
+        enchantChance.text = "Chance: 0%"
+        button_confirm.disabled = true
+
         if enchanted then
-            log:debug("Closing menu after successful enchantment")
-            local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
-            if menu then
-                menu:destroy()
-                tes3ui.leaveMenuMode()
-            end
+            log:info("Removing enchantment UI block because painting was enchanted")
+            if e.onEnchantSuccessCallback then e.onEnchantSuccessCallback() end
+            block_outer:destroy()
+        else
+            if e.onEnchantFailCallback then e.onEnchantFailCallback() end
         end
     end)
-    button_confirm:register("help", function()
-        UIHelper.createTooltipMenu {
-            header = "Enchant",
-            text = "If successful, the painting will be magically linked to the exact spot where it was originally painted, allowing it to be used as a portal.",
-        }
-    end)
+    button_confirm:register("help", e.confirmEnchantTooltipCallback)
     log:trace("Enchant menu creation completed")
 end
 
@@ -314,24 +453,36 @@ end
 
 ---@param e JOPT.EnchantMenu.createTeleportBlock.params
 function EnchantMenu:createTeleportBlock(e)
-    e.parent:createDivider()
+    log:debug("Creating teleport block, parent: %s", e.parent.name)
 
-    local headerRow = e.parent:createBlock {}
-    headerRow.widthProportional = 1.0
-    headerRow.autoHeight = true
-    headerRow.flowDirection = "left_to_right"
-    headerRow.childAlignY = 1
-    headerRow.borderAllSides = 10
+    local block_outer = e.parent:createBlock()
+    block_outer.autoHeight = true
+    block_outer.widthProportional = 1.0
+    block_outer.flowDirection = "top_to_bottom"
+    block_outer.childAlignX = 0.5
+    block_outer.borderTop = 6
+    block_outer.borderLeft = 50
+    block_outer.borderRight = 50
+    block_outer:createDivider()
 
     local location = e.painting.dataHolder.data.joyOfPainting.location --[[@as JOP.Painting.location|string]]
     local cellName = location.cellName or location --[[@as string]]
-    local header = headerRow:createLabel { text = string.format("Linked to %s", cellName) }
-    header.autoWidth = true
+    local coords = string.format("(%i, %i, %i)", location.position.x, location.position.y, location.position.z)
+    local header = block_outer:createLabel {
+        text = string.format("Magically linked to %s, %s", cellName, coords)
+    }
+    header.widthProportional = 1.0
+    header.autoHeight = true
+    header.wrapText = true
 
-    local button_teleport = headerRow:createButton { text = "Recall" }
-    button_teleport.childAlignX = 1.0
-    button_teleport.paddingAllSides = 6
+    local button_teleport = block_outer:createButton { text = "Recall" }
+    button_teleport.borderAllSides = 8
+    button_teleport.paddingTop = 8
+    button_teleport.paddingBottom = 8
+    button_teleport.paddingLeft = 24
+    button_teleport.paddingRight = 24
     button_teleport:register("mouseClick", function()
+        log:trace("Teleport button clicked")
         if e.teleportCallback then e.teleportCallback(e.painting.data.location) end
     end)
 end
