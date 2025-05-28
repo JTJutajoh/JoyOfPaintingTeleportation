@@ -13,10 +13,10 @@ log:info("Initializing MCM config")
 ---@type JOPT_Config
 local defaultConfig = {
     logLevel = "INFO",
-    minSoulStrength = 100,
-    baseChance = 0.2,
-    optimalSoulValue = 200,
-    optimalEnchantLevel = 50,
+    minSoulStrength = 50,
+    baseChance = 0.4,
+    optimalSoulValue = 300,
+    optimalEnchantLevel = 75,
     minChance = 0
 }
 

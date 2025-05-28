@@ -160,7 +160,7 @@ function EnchantMenu.calcEnchantChance(soulValue)
     local soulContribution = (1 - math.max(((config.optimalSoulValue - soulValue) / config.optimalSoulValue), 0))
     log:trace("Soul contribution: %f", soulContribution)
     ---@type number
-    local skillContribution = math.max((-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel, -1)
+    local skillContribution = math.max(((-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel) * 0.8, -1)
     log:trace("Skill contribution: %f", skillContribution)
     log:trace("Minimum chance: %f", config.minChance)
     return math.max(config.baseChance + soulContribution + skillContribution, config.minChance)
