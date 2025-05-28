@@ -4,7 +4,7 @@ local config = require("dark.JOPTeleportation.config")
 if not config then return end
 
 ---@type mwseLogger
-local log = mwse.Logger.new()
+local log = mwse.Logger.new("JOPT - Enchant Menu")
 
 -- local JoyOfPainting = require("mer.joyOfPainting")
 -- if not JoyOfPainting then return end
@@ -27,7 +27,7 @@ PaintingRegistry = require("dark.JOPTeleportation.PaintingRegistry")
 ---@field reference tes3reference
 
 --- Given a painting or a container for paintings (frames, easels, sketchbook, etc.) returns the unique ID of the specific painting
----@param item JOPT.tes3itemChildren|JOP.Painting|nil The painting, frame, easel, sketchbook, etc. that contains a painting
+---@param item JOPT.tes3itemChildren|JOP.Painting|JOP.Sketchbook.sketch|nil The painting, frame, easel, sketchbook, etc. that contains a painting
 ---@return string? ID The paintingID for the painting if one exists, otherwise nil
 ---@see JOP.Painting.data.paintingId
 function EnchantMenu.getPaintingID(item)
@@ -35,40 +35,41 @@ function EnchantMenu.getPaintingID(item)
         log:warn("Tried to get painting ID from nothing")
         return nil
     end
-    log:trace("Fetching painting ID from %s", item.name)
+    log:trace("Fetching painting ID from %s", item.id or item.itemId)
 
     -- Paintings have their ID set as the texture's filename ending with .dds,
     -- so check a substring of the paintingId to make sure that it's the ID we want.
-    if item and item.data and string.sub(item.data.paintingId, -4, -1) == ".dds" then
+    if item and item.data and item.data.paintingId and string.sub(item.data.paintingId, -4, -1) == ".dds" then
         log:trace("Found painting ID: %s", item.data.paintingId)
         return item.data.paintingId
     end
 
-    log:warn("Did not find any painting ID on %s", item.id)
+    log:warn("Did not find any painting ID on %s", item)
     return nil
 end
 
 --- Given a painting or a container for paintings (frames, easels, sketchbook, etc.) returns whether or not the painting is enchanted.<br>
 --- Currently just a wrapper for DataRegistry.isEnchanted
----@param painting JOP.Painting
+---@param painting JOP.Painting|JOP.Sketchbook.sketch
 ---@return boolean enchanted
 function EnchantMenu.isEnchanted(painting)
+    local paintingId = EnchantMenu.getPaintingID(painting)
     ---@type boolean
-    local enchanted = PaintingRegistry.isEnchanted(EnchantMenu.getPaintingID(painting))
+    local enchanted = PaintingRegistry.isEnchanted(paintingId)
 
-    log:trace("Checking enchanted status of %s, result: %s", painting.item.name, enchanted)
+    log:trace("Checking enchanted status of %s, result: %s", paintingId, enchanted)
 
     return enchanted
 end
 
 --- Given a painting, mark it as enchanted in the DataRegistry
----@param paintingHolder JOP.Painting|JOPT.tes3itemChildren A painting or an item that can contain a painting such as a frame or easel.
+---@param paintingHolder JOP.Painting|JOP.Sketchbook.sketch|JOPT.tes3itemChildren A painting or an item that can contain a painting such as a frame or easel.
 ---@return boolean success
 function EnchantMenu.enchant(paintingHolder)
     local paintingId = EnchantMenu.getPaintingID(paintingHolder)
     if paintingId then
         PaintingRegistry.storePaintingIsEnchanted(paintingId, true)
-        log:debug("Set %s as enchanted", paintingHolder.item.name)
+        log:debug("Set %s as enchanted", paintingId)
         return true
     else
         log:warn("Failed to mark '%s' as enchanted, invalid paintingId", paintingHolder.id)
@@ -78,7 +79,7 @@ end
 
 ---@class JOPT.EnchantMenu.attemptEnchant.params
 ---@field soulGem JOPT.EnchantMenu.SoulGem
----@field painting JOP.Painting
+---@field painting JOP.Painting|JOP.Sketchbook.sketch
 
 ---Called when the user clicks the button to perform an enchantment.  
 ---Checks if the soul in the chosen gem is valid and performs the dice rolls to check if it should enchant.
@@ -136,6 +137,12 @@ function EnchantMenu.teleport(location)
         if menu then
             log:debug("Closing instance of JOP.NamePaintingMenu")
             menu:destroy()
+        else
+            menu = tes3ui.findMenu("JOP_SketchbookMenu")
+            if menu then
+                log:debug("Closing instance of JOP_SketchbookMenu")
+                menu:destroy()
+            end
         end
     else
         log:error("Failed to teleport to location: %s", function() return json.encode(location or {}) end)
@@ -218,17 +225,18 @@ end
 
 ---@class JOPT.EnchantMenu.params
 ---@field parent tes3uiElement
----@field painting JOP.Painting
+---@field painting JOP.Painting|JOP.Sketchbook.sketch
+---@field borderSides number?
+---@field addDivider boolean?
 
 --- Adds a block to a given UI parent for a given painting.<br>
 --- If the painting is already enchanted, it adds the teleport GUI. If not, it adds the enchantment GUI.
 ---@param e JOPT.EnchantMenu.params
 ---@return JOPT.EnchantMenu 
 function EnchantMenu:new(e)
-    log:info("Creating EnchantMenu")
+    log:info("Creating EnchantMenu for %s on %s", e.painting, e.parent.name)
     ---@type JOPT.EnchantMenu
     local enchantMenu = setmetatable({}, self)
-    enchantMenu.painting = e.painting
 
     if not e.painting then
         log:error("Couldn't create enchant menu, painting was nil")
@@ -243,14 +251,16 @@ function EnchantMenu:new(e)
         log:debug("Painting is enchanted, adding the teleport UI block to the name painting menu")
         EnchantMenu:createTeleportBlock {
             parent = e.parent,
-            painting = enchantMenu.painting,
-            teleportCallback = EnchantMenu.teleport
+            painting = e.painting,
+            teleportCallback = EnchantMenu.teleport,
+            borderSides = e.borderSides,
+            addDivider = e.addDivider,
         }
     else
         log:debug("Painting is NOT enchanted, adding the enchant UI block to the name painting menu")
         EnchantMenu:createEnchantBlock {
             parent = e.parent,
-            painting = enchantMenu.painting,
+            painting = e.painting,
             enchantChanceTooltipCallback = function()
                 log:trace("Creating tooltip for enchant chance label")
                 UIHelper.createTooltipMenu {
@@ -275,13 +285,17 @@ function EnchantMenu:new(e)
                 log:debug("Painting successfully enchanted, adding the teleport UI block to the name painting menu")
                 EnchantMenu:createTeleportBlock {
                     parent = e.parent,
-                    painting = enchantMenu.painting,
-                    teleportCallback = EnchantMenu.teleport
+                    painting = e.painting,
+                    teleportCallback = EnchantMenu.teleport,
+                    borderSides = e.borderSides,
+                    addDivider = e.addDivider,
                 }
             end,
             -- onEnchantFailCallback = function()
 
             -- end,
+            borderSides = e.borderSides,
+            addDivider = e.addDivider,
         }
     end
 
@@ -291,11 +305,13 @@ end
 
 ---@class JOPT.EnchantMenu.createEnchantBlock.params
 ---@field parent tes3uiElement
----@field painting JOP.Painting
+---@field painting JOP.Painting|JOP.Sketchbook.sketch
 ---@field enchantChanceTooltipCallback function?
 ---@field confirmEnchantTooltipCallback function?
 ---@field onEnchantSuccessCallback function?
 ---@field onEnchantFailCallback function?
+---@field borderSides number?
+---@field addDivider boolean?
 
 --- Creates and adds a UI block to a given parent for enchanting a painting
 ---@param e JOPT.EnchantMenu.createEnchantBlock.params
@@ -311,9 +327,9 @@ function EnchantMenu:createEnchantBlock(e)
     block_outer.flowDirection = "top_to_bottom"
     block_outer.childAlignX = 0.5
     block_outer.borderTop = 6
-    block_outer.borderLeft = 50
-    block_outer.borderRight = 50
-    block_outer:createDivider()
+    block_outer.borderLeft = e.borderSides or 50
+    block_outer.borderRight = e.borderSides or 50
+    if e.addDivider then block_outer:createDivider() end
 
     --header
     local headerRow = block_outer:createBlock {}
@@ -367,9 +383,10 @@ function EnchantMenu:createEnchantBlock(e)
 
     local noSoulText = "Select a sufficiently filled soul gem"
     local soulDetails = border:createLabel { text = noSoulText }
-    soulDetails.autoWidth = true
+    soulDetails.widthProportional = 1.0
     soulDetails.autoHeight = true
     soulDetails.borderLeft = 8
+    soulDetails.wrapText = true
 
     -- Define this early so that it can be referenced in the closure below
     local button_confirm
@@ -448,8 +465,10 @@ end
 
 ---@class JOPT.EnchantMenu.createTeleportBlock.params
 ---@field parent tes3uiElement
----@field painting JOP.Painting
+---@field painting JOP.Painting|JOP.Sketchbook.sketch
 ---@field teleportCallback fun(location: JOP.Painting.location)?
+---@field borderSides number?
+---@field addDivider boolean?
 
 ---@param e JOPT.EnchantMenu.createTeleportBlock.params
 function EnchantMenu:createTeleportBlock(e)
@@ -461,11 +480,19 @@ function EnchantMenu:createTeleportBlock(e)
     block_outer.flowDirection = "top_to_bottom"
     block_outer.childAlignX = 0.5
     block_outer.borderTop = 6
-    block_outer.borderLeft = 50
-    block_outer.borderRight = 50
-    block_outer:createDivider()
+    block_outer.borderLeft = e.borderSides or 50
+    block_outer.borderRight = e.borderSides or 50
+    if e.addDivider then block_outer:createDivider() end
 
-    local location = e.painting.dataHolder.data.joyOfPainting.location --[[@as JOP.Painting.location|string]]
+    ---@type JOP.Painting.location|string
+    local location
+    if e.painting.dataHolder then
+        -- If it's a painting item
+        location = e.painting.dataHolder.data.joyOfPainting.location
+    else
+        -- If it's a sketch in a sketchbook
+        location = e.painting.data.location
+    end
     local cellName = location.cellName or location --[[@as string]]
     local coords = string.format("(%i, %i, %i)", location.position.x, location.position.y, location.position.z)
     local header = block_outer:createLabel {
@@ -483,7 +510,7 @@ function EnchantMenu:createTeleportBlock(e)
     button_teleport.paddingRight = 24
     button_teleport:register("mouseClick", function()
         log:trace("Teleport button clicked")
-        if e.teleportCallback then e.teleportCallback(e.painting.data.location) end
+        if e.teleportCallback then e.teleportCallback(location) end
     end)
 end
 

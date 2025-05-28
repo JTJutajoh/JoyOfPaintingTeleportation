@@ -2,7 +2,7 @@ local config = require("dark.JOPTeleportation.config")
 if not config then return end
 
 ---@type mwseLogger
-local log = mwse.Logger.new()
+local log = mwse.Logger.new("JOPT - Painting Menu")
 
 local EnchantMenu = include("dark.JOPTeleportation.EnchantMenu")
 
@@ -30,6 +30,8 @@ function Painting:paintingMenu()
         local enchantMenu = EnchantMenu:new {
             painting = self,
             parent = menu,
+            addDivider = true,
+            borderSides = 20,
         }
     else
         log:error("Failed to find the name painting menu after it should have been created.")

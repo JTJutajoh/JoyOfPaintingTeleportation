@@ -1,5 +1,5 @@
 ---@type mwseLogger
-local log = mwse.Logger.new("JOP Teleportation")
+local log = mwse.Logger.new("JOPT - Config")
 log:info("Initializing MCM config")
 
 ---@class (exact) JOPT_Config
