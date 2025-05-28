@@ -157,7 +157,7 @@ function EnchantMenu.calcEnchantChance(soulValue)
     log:trace("Calculating enchant chance")
     log:trace("Base chance: %f", config.baseChance)
     ---@type number
-    local soulContribution = (1 - math.max(((config.optimalSoulValue - soulValue) / config.optimalSoulValue), 0))
+    local soulContribution = (1 - math.max(((config.optimalSoulValue - soulValue) / config.optimalSoulValue) * 1.2, 0))
     log:trace("Soul contribution: %f", soulContribution)
     ---@type number
     local skillContribution = math.max(((-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel) * 0.8, -1)
@@ -344,11 +344,6 @@ function EnchantMenu:createEnchantBlock(e)
     local spacer = headerRow:createBlock()
     spacer.widthProportional = 1.0
 
-    local enchantChance = headerRow:createLabel { text = "Chance: 0%" }
-    enchantChance:register("help", e.enchantChanceTooltipCallback)
-    enchantChance.childAlignX = 1.0
-    enchantChance.autoWidth = true
-
     --body
     local border = block_outer:createThinBorder {}
     border.flowDirection = "left_to_right"
@@ -390,6 +385,7 @@ function EnchantMenu:createEnchantBlock(e)
 
     -- Define this early so that it can be referenced in the closure below
     local button_confirm
+    local enchantChance
 
     item_border:register("mouseClick", function()
         log:trace("Item border clicked, choosing soul gem")
@@ -434,8 +430,18 @@ function EnchantMenu:createEnchantBlock(e)
     button_block.widthProportional = 1.0
     button_block.autoHeight = true
     button_block.childAlignX = 1.0
+    button_block.flowDirection = "left_to_right"
+
+    enchantChance = button_block:createLabel { text = "Chance: 0%" }
+    enchantChance:register("help", e.enchantChanceTooltipCallback)
+    enchantChance.childAlignX = 0
+    enchantChance.autoWidth = true
+
+    local button_spacer = button_block:createBlock()
+    button_spacer.widthProportional = 1.0
 
     button_confirm = button_block:createButton { text = "Enchant" }
+    button_confirm.paddingAllSides = 6
     button_confirm.disabled = true
     button_confirm:register("mouseClick", function()
         log:trace("Enchant button clicked")
