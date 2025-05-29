@@ -10,6 +10,12 @@ local EnchantMenu = include("dark.JOPTeleportation.EnchantMenu")
 local Painting = require("mer.joyOfPainting.items.Painting")
 if not Painting then return end
 
+---@param painting JOP.Painting
+---@return boolean
+local function isEnchantAllowed(painting)
+    return not config.disallowedArtStyles[painting.data.artStyle] == true
+end
+
 ---@type fun(self: JOP.Painting)
 local original_Painting_paintingMenu = Painting.paintingMenu
 
@@ -23,18 +29,22 @@ function Painting:paintingMenu()
     log:trace("Calling original JOP Painting:paintingMenu")
     original_Painting_paintingMenu(self)
 
-    ---@type tes3uiElement?
-    local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
-    if menu then
-        log:trace("Found JOP.NamePaintingMenu")
-        local enchantMenu = EnchantMenu:new {
-            painting = self,
-            parent = menu,
-            addDivider = true,
-            borderSides = 20,
-        }
+    if isEnchantAllowed(self) or EnchantMenu.isEnchanted(self) then
+        ---@type tes3uiElement?
+        local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
+        if menu then
+            log:trace("Found JOP.NamePaintingMenu")
+            local enchantMenu = EnchantMenu:new {
+                painting = self,
+                parent = menu,
+                addDivider = true,
+                borderSides = 20,
+            }
+        else
+            log:error("Failed to find the name painting menu after it should have been created.")
+        end
     else
-        log:error("Failed to find the name painting menu after it should have been created.")
+        log:debug("Painting was disallowed in MCM")
     end
     log:trace("Finished running Painting:paintingMenu replacer patch")
 end

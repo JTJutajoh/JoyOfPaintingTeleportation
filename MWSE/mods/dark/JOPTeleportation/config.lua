@@ -17,6 +17,7 @@ JOPT_MagicItemBorders = {
 ---@field optimalSoulValue integer Soul values below this incur a penalty to enchant chance
 ---@field optimalEnchantLevel integer Enchant skill levels below this incur a penalty to enchant chance
 ---@field minChance number Minimum 0-1 chance that enchanting will succeed
+---@field disallowedArtStyles any
 ---@field valueMultiplier number
 ---@field tooltipToggle boolean
 ---@field enchantedLabelColor mwseColorTable
@@ -35,6 +36,7 @@ local defaultConfig = {
     optimalSoulValue = 300,
     optimalEnchantLevel = 75,
     minChance = 0,
+    disallowedArtStyles = { ["Charcoal Drawing"] = true, },
     valueMultiplier = 2.5,
     tooltipToggle = true,
     enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
@@ -131,6 +133,31 @@ local function registerModConfig()
         callback = function(self)
             log.level = self.variable.value
         end
+    })
+
+    template:createExclusionsPage({
+        label = "Allowed art styles",
+        description = "Select which art styles/mediums are eligible for enchantment.\n\nAny paintings previously enchanted will still work even if their art style is later excluded.",
+        leftListLabel = "Not Enchantable",
+        rightListLabel = "Enchantable",
+        configKey = "disallowedArtStyles",
+        filters = {
+            {
+                label = "Art Styles",
+                callback = function()
+                    local JOP = require("mer.joyOfPainting.config")
+                    local artStyles = {}
+                    
+                    for name, style in pairs(JOP.artStyles) do
+                        table.insert(artStyles, name)
+                    end
+
+                    table.sort(artStyles)
+
+                    return artStyles
+                end
+            }
+        }
     })
 
     -- Balance settings
