@@ -13,5 +13,6 @@ local function initialized()
     include("dark.JOPTeleportation.SketchbookMenu")
     include("dark.JOPTeleportation.ActivatorMessageMenu")
     include("dark.JOPTeleportation.tooltips")
+    include("dark.JOPTeleportation.itemTile")
 end
 event.register(tes3.event.initialized, initialized)
