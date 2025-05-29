@@ -5,9 +5,6 @@ if not config then return end
 ---@type mwseLogger
 local log = mwse.Logger.new("JOPT - Tooltips")
 
--- local JoyOfPainting = require("mer.joyOfPainting")
--- if not JoyOfPainting then return end
-
 PaintingRegistry = require("dark.JOPTeleportation.PaintingRegistry")
 EnchantMenu = require("dark.JOPTeleportation.EnchantMenu")
 
