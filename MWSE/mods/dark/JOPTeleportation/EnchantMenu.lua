@@ -6,8 +6,8 @@ if not config then return end
 ---@type mwseLogger
 local log = mwse.Logger.new("JOPT - Enchant Menu")
 
--- local JoyOfPainting = require("mer.joyOfPainting")
--- if not JoyOfPainting then return end
+local JOPConfig = require("mer.joyOfPainting.config")
+if not JOPConfig then return end
 
 local CraftingFramework = require("CraftingFramework")
 if not CraftingFramework then return end
@@ -111,7 +111,7 @@ function EnchantMenu.attemptEnchant(e)
     log:debug("Attempting to enchant")
 
     local soul = e.soulGem.itemData.soul.soul
-    local chance = EnchantMenu.calcEnchantChance(soul)
+    local chance = EnchantMenu.calcEnchantChance(soul, e.painting)
     log:debug("Enchant chance: %f", chance)
     local roll = math.random()
     log:debug("Rolled: %f", roll)
@@ -182,20 +182,33 @@ function EnchantMenu.teleport(location)
     end
 end
 
---- Given an input soul value from a soul gem, returns a 0-1 chance of enchantment success based on the soul value and the player's Enchant skill
+--- Given an input soul value from a soul gem, returns a 0-1 chance of enchantment success based on the soul value and the player's Enchant skill and the painting's skill
 ---@param soulValue number
+---@param painting JOP.Painting|JOP.Sketchbook.sketch
 ---@return number chance 0-1 chance of success
-function EnchantMenu.calcEnchantChance(soulValue)
+function EnchantMenu.calcEnchantChance(soulValue, painting)
     log:trace("Calculating enchant chance")
     log:trace("Base chance: %f", config.baseChance)
-    ---@type number
-    local soulContribution = (1 - math.max(((config.optimalSoulValue - soulValue) / config.optimalSoulValue) * 1.2, 0))
+
+    local soulMult = 1.3 -- Higher values increase the penalty that weak souls incur
+    local enchantMult = 1.2 -- Higher values increase the penalty for being below the optimal enchant level
+    local paintingMult = 0.4 -- Lower values increase the penalty for being below the optimal painting level
+
+    local soulFrac = (config.optimalSoulValue - soulValue) / config.optimalSoulValue
+    local soulContribution = math.max(-1 * soulFrac * soulMult, -1)
     log:trace("Soul contribution: %f", soulContribution)
-    ---@type number
-    local skillContribution = math.max(((-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel) * 0.8, -1)
-    log:trace("Skill contribution: %f", skillContribution)
+
+    local enchantFrac = (-config.optimalEnchantLevel + tes3.mobilePlayer.enchant.current) / config.optimalEnchantLevel
+    local enchantContribution = math.max(enchantFrac * enchantMult, -1)
+    log:trace("Enchant skill contribution: %f", enchantContribution)
+
+    local artStyleOptimalLevel = JOPConfig.artStyles[painting.data.artStyle].maxDetailSkill
+    local paintingSkill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(painting))
+    local paintingContribution = math.min((paintingSkill / artStyleOptimalLevel), 1) * paintingMult
+    log:trace("Painting skill contribution : %f", paintingContribution)
     log:trace("Minimum chance: %f", config.minChance)
-    return math.max(config.baseChance + soulContribution + skillContribution, config.minChance)
+
+    return math.max((config.baseChance + enchantContribution + paintingContribution) * 0.7 + soulContribution, config.minChance)
 end
 
 --- Opens a CraftingFramework selection menu filtering for valid soul gems
@@ -289,42 +302,55 @@ function EnchantMenu:new(e)
             addDivider = e.addDivider,
         }
     else
-        log:debug("Painting is NOT enchanted, adding the enchant UI block to the name painting menu")
-        EnchantMenu:createEnchantBlock {
-            parent = e.parent,
-            painting = e.painting,
-            enchantChanceTooltipCallback = function()
-                log:trace("Creating tooltip for enchant chance label")
-                UIHelper.createTooltipMenu {
-                    header = "Chance of success",
-                    text = "Based on the strength of the soul and the enchanter's Enchant skill (configurable in MCM).",
-                }
-            end,
-            confirmEnchantTooltipCallback = function()
-                log:trace("Creating tooltip for enchant confirm button")
-                UIHelper.createTooltipMenu {
-                    header = "Enchant",
-                    text = "If successful, the painting will be magically linked to the exact spot where it was originally painted, allowing it to be used as a portal.",
-                }
-            end,
-            onEnchantSuccessCallback = function()
-                log:debug("Painting successfully enchanted, adding the teleport UI block to the name painting menu")
-                EnchantMenu:createTeleportBlock {
-                    parent = e.parent,
-                    painting = e.painting,
-                    teleportCallback = EnchantMenu.teleport,
-                    borderSides = e.borderSides,
-                    addDivider = e.addDivider,
-                }
-                
-                EnchantMenu.multiplyValue(e.painting)
-            end,
-            -- onEnchantFailCallback = function()
+        log:debug("Painting is NOT enchanted.")
+        if PaintingRegistry.skillWhenPainted(e.painting.id) or 100 >= config.minPaintingSkill then
+            log:debug("Adding the enchant UI block to the name painting menu")
+            EnchantMenu:createEnchantBlock {
+                parent = e.parent,
+                painting = e.painting,
+                enchantChanceTooltipCallback = function()
+                    log:trace("Creating tooltip for enchant chance label")
+                    UIHelper.createTooltipMenu {
+                        header = "Chance of success",
+                        text = [[
+Chance that the painting will successfully be enchanted.
+The soul gem will be consumed either way.
 
-            -- end,
-            borderSides = e.borderSides,
-            addDivider = e.addDivider,
-        }
+Takes into account:
+Soul strength, player Enchant skill, and Painting skill when the painting was made.
+
+See MCM to configure this.
+]],
+                    }
+                end,
+                confirmEnchantTooltipCallback = function()
+                    log:trace("Creating tooltip for enchant confirm button")
+                    UIHelper.createTooltipMenu {
+                        header = "Enchant",
+                        text = "If successful, the painting will be magically linked to the exact spot where it was originally painted, allowing it to be used as a portal.",
+                    }
+                end,
+                onEnchantSuccessCallback = function()
+                    log:debug("Painting successfully enchanted, adding the teleport UI block to the name painting menu")
+                    EnchantMenu:createTeleportBlock {
+                        parent = e.parent,
+                        painting = e.painting,
+                        teleportCallback = EnchantMenu.teleport,
+                        borderSides = e.borderSides,
+                        addDivider = e.addDivider,
+                    }
+                    
+                    EnchantMenu.multiplyValue(e.painting)
+                end,
+                -- onEnchantFailCallback = function()
+
+                -- end,
+                borderSides = e.borderSides,
+                addDivider = e.addDivider,
+            }
+        else
+            log:info("Painting skill level (%i) too low to enchant", PaintingRegistry.skillWhenPainted(e.painting.id))
+        end
     end
 
     log:debug("Finished creating EnchantMenu")
@@ -436,7 +462,7 @@ function EnchantMenu:createEnchantBlock(e)
                 log:trace("Soul details: %s", details)
                 soulDetails.text = details
                 
-                local chance = EnchantMenu.calcEnchantChance(soul.soul)
+                local chance = EnchantMenu.calcEnchantChance(soul.soul, e.painting)
                 log:trace("Enchant chance: %f", chance)
                 enchantChance.text = string.format("Chance: %i%%", chance * 100)
 

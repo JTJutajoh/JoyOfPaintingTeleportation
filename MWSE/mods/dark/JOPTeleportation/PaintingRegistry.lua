@@ -1,5 +1,8 @@
 local PaintingRegistry = {}
 
+local SkillService = include("mer.joyOfPainting.services.SkillService")
+if not SkillService then return end
+
 ---@type JOPT_Config
 local config = require("dark.JOPTeleportation.config")
 if not config then return end
@@ -9,7 +12,8 @@ local log = mwse.Logger.new("JOPT - Painting Registry")
 
 --- A single entry in the data registry that is matched to a unique painting ID
 ---@class JOPT.PaintingRegistry.Painting
----@field enchanted boolean
+---@field enchanted boolean?
+---@field skill number?
 
 --- A table that stores all paintings and their enchanted status, so it persists even when JOP destroys the painting items
 ---@class JOPT.PaintingRegistry
@@ -105,4 +109,38 @@ function PaintingRegistry.isEnchanted(paintingId)
     return false
 end
 
-return DataRegistry
+---@param paintingId string
+---@return number? skill Will be nil if there is no stored data on the given painting
+function PaintingRegistry.skillWhenPainted(paintingId)
+    local data = PaintingRegistry.getPaintingData(paintingId)
+    if data then
+        return data.skill
+    end
+    return nil
+end
+
+--- Event callback that runs whenever any object is created in the game so that it can catch and track any paintings
+--- This is to attach the player painting skill level at the time of painting to the painting, since JOP does not store that data
+---@param e objectCreatedEventData
+function PaintingRegistry.onObjectCreated(e)
+    if not tes3.player then return end
+    if e.object.objectType == tes3.objectType.miscItem and e.object.id:sub(-4, -1) == ".dds" then
+        local object = e.object --[[@as tes3misc]]
+        local id = object.id
+        local alreadyTracked = PaintingRegistry.getPaintingData(id) ~= nil
+        log:debug("Painting object just created: %s (Already tracked? %s)", id, alreadyTracked)
+        if not alreadyTracked then
+            timer.start {
+                duration = 0.2,
+                callback = function()
+                    local skill = SkillService.getPaintingSkillLevel()
+                    log:info("Storing painting skill level %i with %s", skill, id)
+                    PaintingRegistry.storePaintingData(id, { skill = skill, enchanted = false })
+                end
+            }
+        end
+    end
+end
+event.register(tes3.event.objectCreated, PaintingRegistry.onObjectCreated)
+
+return PaintingRegistry

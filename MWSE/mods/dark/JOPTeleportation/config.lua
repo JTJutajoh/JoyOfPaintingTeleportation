@@ -16,9 +16,11 @@ JOPT_MagicItemBorders = {
 ---@field baseChance number The base chance before all other contributions are added
 ---@field optimalSoulValue integer Soul values below this incur a penalty to enchant chance
 ---@field optimalEnchantLevel integer Enchant skill levels below this incur a penalty to enchant chance
+---@field optimalPaintingSkillFrac integer
 ---@field minChance number Minimum 0-1 chance that enchanting will succeed
 ---@field disallowedArtStyles any
 ---@field valueMultiplier number
+---@field minPaintingSkill integer
 ---@field tooltipToggle boolean
 ---@field enchantedLabelColor mwseColorTable
 ---@field locationNameTruncateLength integer
@@ -32,12 +34,14 @@ JOPT_MagicItemBorders = {
 local defaultConfig = {
     logLevel = "INFO",
     minSoulStrength = 50,
-    baseChance = 0.4,
+    baseChance = 0.6,
     optimalSoulValue = 300,
-    optimalEnchantLevel = 75,
+    optimalEnchantLevel = 50,
+    optimalPaintingSkillFrac = 1.0,
     minChance = 0,
     disallowedArtStyles = { ["Charcoal Drawing"] = true, },
     valueMultiplier = 2.5,
+    minPaintingSkill = 50,
     tooltipToggle = true,
     enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
     locationNameTruncateLength = 30,
@@ -115,11 +119,12 @@ local function registerModConfig()
 
     template:saveOnClose(configPath, config)
 
-    local page = template:createSideBarPage({ label = "Settings" })
+    local page_main = template:createSideBarPage({ label = "Settings" })
+    local page_appearance = template:createSideBarPage({ label = "Appearance" })
 
-    doSidebar(page.sidebar)
+    doSidebar(page_main.sidebar)
 
-    page:createDropdown({
+    page_main:createDropdown({
         label = "Logging Level",
         description = "Set the log level. DEBUG and TRACE not recommended for normal play, only for troubleshooting.",
         configKey = "logLevel",
@@ -145,6 +150,7 @@ local function registerModConfig()
             {
                 label = "Art Styles",
                 callback = function()
+                    -- Dynamically populate the list of art styles from JOP's config so that any potential art styles added in the future are included
                     local JOP = require("mer.joyOfPainting.config")
                     local artStyles = {}
                     
@@ -161,10 +167,11 @@ local function registerModConfig()
     })
 
     -- Balance settings
-    local category_balance = page:createCategory({
+    local category_balance = page_main:createCategory({
         label = "Balance",
         description = "Tweaks to the balance of enchanting paintings."
     })
+
     category_balance:createPercentageSlider({
         label = "Base enchant success chance",
         configKey = "baseChance",
@@ -193,7 +200,28 @@ local function registerModConfig()
         label = "Optimal Enchant level",
         configKey = "optimalEnchantLevel",
         max = 200,
-        description = "Enchanting a frame with an Enchant skill below this value will result in decreased success chance. Above this value will increase the chance.",
+        description = "Enchanting a painting with an Enchant skill below this value will result in decreased success chance. Above this value will increase the chance.",
+    })
+
+    category_balance:createPercentageSlider({
+        label = "Optimal Painting skill fraction",
+        configKey = "optimalPaintingSkillFrac",
+        description = [[
+Each art style in Joy Of Painting has a specific skill level where the detail of the resulting painting is maxed out.
+This setting controls what fraction of that skill level is considered optimal for enchanting the resulting painting. Paintings made with a lower skill level incur a penalty to enchant chance.
+
+Takes into account the skill level of the player when the painting is made, not when the enchantment is attempted. Also not the "Skill level" slider in the painting menu, but the player's actual skill level.
+Set this to 0% to disable this penalty altogether.
+]]
+    })
+
+    category_balance:createSlider({
+        label = "Minimum Painting Skill",
+        configKey = "minPaintingSkill",
+        description = "The minimum Painting skill required (at the time of painting) to allow enchanting attempts at all.",
+        max = 100,
+        jump = 10,
+        step = 1,
     })
 
     category_balance:createPercentageSlider({
@@ -214,7 +242,7 @@ local function registerModConfig()
     })
 
     -- Appearance
-    local category_appearance = page:createCategory({
+    local category_appearance = page_appearance:createCategory({
         label = "Appearance",
     })
 
