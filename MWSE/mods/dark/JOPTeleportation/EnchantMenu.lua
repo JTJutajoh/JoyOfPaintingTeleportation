@@ -276,12 +276,6 @@ function EnchantMenu:new(e)
                 }
             end,
             onEnchantSuccessCallback = function()
-                -- log:debug("Closing menu after successful enchantment")
-                -- local menu = tes3ui.findMenu("JOP.NamePaintingMenu")
-                -- if menu then
-                --     menu:destroy()
-                --     tes3ui.leaveMenuMode()
-                -- end
                 log:debug("Painting successfully enchanted, adding the teleport UI block to the name painting menu")
                 EnchantMenu:createTeleportBlock {
                     parent = e.parent,
@@ -290,6 +284,22 @@ function EnchantMenu:new(e)
                     borderSides = e.borderSides,
                     addDivider = e.addDivider,
                 }
+
+                log:info("Attempting to adjust painting's value")
+                if e.painting.item and e.painting.item.value then
+                    log:trace("Painting was a painting, changing its item value")
+                    e.painting.item.value = (e.painting.item.value or e.painting:calculateValue()) * config.valueMultiplier
+                else
+                    log:debug("Painting item was not valid or did not have a value, trying to find its item by ID")
+                    local paintingId = e.painting.itemId or e.painting.data.paintingId
+                    local item = tes3.getObject(paintingId)
+                    if item then
+                        log:debug("Found the item with ID %s, adjusting its value", paintingId)
+                        item.value = item.value * config.valueMultiplier
+                    else
+                        log:warn("Failed to find the item with ID %s, the painting's value will not be adjusted.", paintingId)
+                    end
+                end
             end,
             -- onEnchantFailCallback = function()
 

@@ -18,6 +18,7 @@ JOPT_MagicItemBorders = {
 ---@field optimalSoulValue integer Soul values below this incur a penalty to enchant chance
 ---@field optimalEnchantLevel integer Enchant skill levels below this incur a penalty to enchant chance
 ---@field minChance number Minimum 0-1 chance that enchanting will succeed
+---@field valueMultiplier number
 ---@field tooltipToggle boolean
 ---@field enchantedLabelColor mwseColorTable
 ---@field locationNameTruncateLength integer
@@ -35,6 +36,7 @@ local defaultConfig = {
     optimalSoulValue = 300,
     optimalEnchantLevel = 75,
     minChance = 0,
+    valueMultiplier = 2.5,
     tooltipToggle = true,
     enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
     locationNameTruncateLength = 30,
@@ -169,6 +171,17 @@ local function registerModConfig()
         label = "Minimum success chance",
         configKey = "minChance",
         description = "The minimum chance enchanting a frame will work. Set this to 100% to make enchants always succeed.",
+    })
+
+    category_balance:createSlider({
+        label = "Enchantment Value Multiplier",
+        configKey = "valueMultiplier",
+        description = "When a painting is successfully enchanted, its gold value will be multiplied by this number.",
+        min = 1,
+        max = 10,
+        decimalPlaces = 2,
+        jump = 0.25,
+        step = 0.05,
     })
 
     -- Appearance
