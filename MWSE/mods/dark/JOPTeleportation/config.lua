@@ -9,6 +9,9 @@ log:info("Initializing MCM config")
 ---@field optimalSoulValue integer Soul values below this incur a penalty to enchant chance
 ---@field optimalEnchantLevel integer Enchant skill levels below this incur a penalty to enchant chance
 ---@field minChance number Minimum 0-1 chance that enchanting will succeed
+---@field tooltipToggle boolean
+---@field enchantedLabelColor mwseColorTable
+---@field locationNameTruncateLength integer
 
 ---@type JOPT_Config
 local defaultConfig = {
@@ -17,7 +20,10 @@ local defaultConfig = {
     baseChance = 0.4,
     optimalSoulValue = 300,
     optimalEnchantLevel = 75,
-    minChance = 0
+    minChance = 0,
+    tooltipToggle = true,
+    enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
+    locationNameTruncateLength = 30,
 }
 
 ---@type string
@@ -95,6 +101,28 @@ local function registerModConfig()
         label = "Minimum success chance",
         configKey = "minChance",
         description = "The minimum chance enchanting a frame will work. Set this to 100% to make enchants always succeed.",
+    })
+
+    page:createDropdown({
+        label = "Add enchanted info to tooltips",
+        configKey = "tooltipToggle",
+        description = "If enabled, paintings that have been enchanted for teleportation will have extra info added to their item tooltips.",
+        options = {
+            { value = true, label = "Enabled" },
+            { value = false, label = "Disabled" },
+        }
+    })
+
+    page:createColorPicker({
+        label = "Enchanted tooltip color",
+        configKey = "enchantedLabelColor",
+        description = "Color of the extra label added to enchanted paintings."
+    })
+
+    page:createSlider({
+        label = "Max location name in tooltips",
+        configKey = "locationNameTruncateLength",
+        max = 64,
     })
 end
 event.register(tes3.event.modConfigReady, registerModConfig)
