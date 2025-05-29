@@ -54,6 +54,7 @@ New data: %s
             )
         end
         registry.enchantedPaintings[paintingId] = data
+        event.trigger("JOPT.PaintingDataStored", { paintingId = paintingId, data = data })
     end
 end
 
@@ -74,6 +75,7 @@ function DataRegistry.storePaintingIsEnchanted(paintingId, enchanted)
                 enchanted = enchanted,
             })
         end
+        event.trigger("JOPT.PaintingEnchanted", { paintingId = paintingId, enchanted = enchanted })
     end
 end
 
