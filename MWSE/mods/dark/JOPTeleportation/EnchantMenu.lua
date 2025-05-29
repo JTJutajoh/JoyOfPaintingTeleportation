@@ -62,6 +62,25 @@ function EnchantMenu.isEnchanted(painting)
     return enchanted
 end
 
+---@param painting JOP.Painting|JOP.Sketchbook.sketch
+function EnchantMenu.multiplyValue(painting)
+    log:info("Attempting to adjust painting's value")
+    if painting.item and painting.item.value then
+        log:trace("Painting was a painting, changing its item value")
+        painting.item.value = (painting.item.value or painting:calculateValue()) * config.valueMultiplier
+    else
+        log:debug("Painting item was not valid or did not have a value, trying to find its item by ID")
+        local paintingId = painting.itemId or painting.data.paintingId
+        local item = tes3.getObject(paintingId)
+        if item then
+            log:debug("Found the item with ID %s, adjusting its value", paintingId)
+            item.value = item.value * config.valueMultiplier
+        else
+            log:warn("Failed to find the item with ID %s, the painting's value will not be adjusted.", paintingId)
+        end
+    end
+end
+
 --- Given a painting, mark it as enchanted in the DataRegistry
 ---@param paintingHolder JOP.Painting|JOP.Sketchbook.sketch|JOPT.tes3itemChildren A painting or an item that can contain a painting such as a frame or easel.
 ---@return boolean success
@@ -284,22 +303,8 @@ function EnchantMenu:new(e)
                     borderSides = e.borderSides,
                     addDivider = e.addDivider,
                 }
-
-                log:info("Attempting to adjust painting's value")
-                if e.painting.item and e.painting.item.value then
-                    log:trace("Painting was a painting, changing its item value")
-                    e.painting.item.value = (e.painting.item.value or e.painting:calculateValue()) * config.valueMultiplier
-                else
-                    log:debug("Painting item was not valid or did not have a value, trying to find its item by ID")
-                    local paintingId = e.painting.itemId or e.painting.data.paintingId
-                    local item = tes3.getObject(paintingId)
-                    if item then
-                        log:debug("Found the item with ID %s, adjusting its value", paintingId)
-                        item.value = item.value * config.valueMultiplier
-                    else
-                        log:warn("Failed to find the item with ID %s, the painting's value will not be adjusted.", paintingId)
-                    end
-                end
+                
+                EnchantMenu.multiplyValue(e.painting)
             end,
             -- onEnchantFailCallback = function()
 
