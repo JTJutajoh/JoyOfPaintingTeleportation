@@ -1,4 +1,4 @@
-local DataRegistry = {}
+local PaintingRegistry = {}
 
 ---@type JOPT_Config
 local config = require("dark.JOPTeleportation.config")
@@ -18,14 +18,14 @@ local log = mwse.Logger.new("JOPT - Painting Registry")
 --- Fetches the data registry attached to the player, which is serialized and persistent within the save. 
 --- If no registry is found, initializes an empty one.
 ---@return JOPT.PaintingRegistry? registry
-function DataRegistry.getRegistry()
+function PaintingRegistry.getRegistry()
     local playerData = tes3.player and tes3.player.data or nil
     if not playerData then
-        log:error("Failed to get data registry, playerData not found")
+        log:warn("Failed to get data registry, playerData not found")
         return nil
     end
     if playerData.JOPT then
-        log:trace("Read registry. Contents: %s", function() return json.encode(playerData.JOPT) end)
+        -- log:trace("Read registry. Contents: %s", function() return json.encode(playerData.JOPT) end)
     else
         log:info("Initializing new empty PaintingRegistry on player")
         playerData.JOPT = { enchantedPaintings = {} } --[[@as JOPT.PaintingRegistry]]
@@ -37,8 +37,8 @@ end
 ---@param paintingId string The unique ID for a specific painting set by JOP, will be the filename of the texture
 ---@param data JOPT.PaintingRegistry.Painting
 ---@see JOP.Painting.data.paintingId
-function DataRegistry.storePaintingData(paintingId, data)
-    local registry = DataRegistry.getRegistry()
+function PaintingRegistry.storePaintingData(paintingId, data)
+    local registry = PaintingRegistry.getRegistry()
     if registry then
         log:info("Storing data for painting '%s': %s", paintingId, data)
         if registry[paintingId] then
@@ -62,8 +62,8 @@ end
 ---@param paintingId string The unique ID for a specific painting set by JOP, will be the filename of the texture
 ---@param enchanted boolean
 ---@see JOP.Painting.data.paintingId
-function DataRegistry.storePaintingIsEnchanted(paintingId, enchanted)
-    local registry = DataRegistry.getRegistry()
+function PaintingRegistry.storePaintingIsEnchanted(paintingId, enchanted)
+    local registry = PaintingRegistry.getRegistry()
     if registry then
         log:info("Storing data for painting '%s': %s", paintingId, enchanted)
         if registry.enchantedPaintings[paintingId] then
@@ -71,7 +71,7 @@ function DataRegistry.storePaintingIsEnchanted(paintingId, enchanted)
             registry.enchantedPaintings[paintingId].enchanted = enchanted
         else
             log:debug("Creating new record for '%s' with enchanted %s", paintingId, enchanted)
-            DataRegistry.storePaintingData(paintingId, {
+            PaintingRegistry.storePaintingData(paintingId, {
                 enchanted = enchanted,
             })
         end
@@ -83,13 +83,13 @@ end
 ---@param paintingId string The unique ID for a specific painting set by JOP, will be the filename of the texture
 ---@return JOPT.PaintingRegistry.Painting? data Data associated with the painting or nil if it has not been registered
 ---@see JOP.Painting.data.paintingId
-function DataRegistry.getPaintingData(paintingId)
-    local registry = DataRegistry.getRegistry()
+function PaintingRegistry.getPaintingData(paintingId)
+    local registry = PaintingRegistry.getRegistry()
     if registry and registry.enchantedPaintings[paintingId] then
-        log:info("Fetching data for painting '%s': %s", paintingId, registry.enchantedPaintings[paintingId])
+        log:trace("Fetching data for painting '%s': %s", paintingId, registry.enchantedPaintings[paintingId])
         return registry.enchantedPaintings[paintingId]
     end
-    log:info("No data found for painting '%s'", paintingId)
+    log:trace("No data found for painting '%s'", paintingId)
     return nil
 end
 
@@ -97,8 +97,8 @@ end
 ---@param paintingId string The unique ID for a specific painting set by JOP, will be the filename of the texture
 ---@return boolean enchanted True if the painting is tracked and the data says it is enchanted. False if it is untracked or marked unenchanted for some reason
 ---@see JOP.Painting.data.paintingId
-function DataRegistry.isEnchanted(paintingId)
-    local data = DataRegistry.getPaintingData(paintingId)
+function PaintingRegistry.isEnchanted(paintingId)
+    local data = PaintingRegistry.getPaintingData(paintingId)
     if data then
         return data.enchanted
     end
