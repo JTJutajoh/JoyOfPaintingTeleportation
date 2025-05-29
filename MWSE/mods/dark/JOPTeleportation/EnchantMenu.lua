@@ -9,6 +9,9 @@ local log = mwse.Logger.new("JOPT - Enchant Menu")
 -- local JoyOfPainting = require("mer.joyOfPainting")
 -- if not JoyOfPainting then return end
 
+local CraftingFramework = require("CraftingFramework")
+if not CraftingFramework then return end
+
 PaintingRegistry = require("dark.JOPTeleportation.PaintingRegistry")
 
 ---@alias JOPT.tes3itemChildren tes3item|tes3alchemy|tes3apparatus|tes3armor|tes3book|tes3clothing|tes3ingredient|tes3light|tes3lockpick|tes3misc|tes3probe|tes3repairTool|tes3weapon
@@ -112,6 +115,16 @@ function EnchantMenu.attemptEnchant(e)
     log:debug("Enchant chance: %f", chance)
     local roll = math.random()
     log:debug("Rolled: %f", roll)
+
+    log:info("Consuming soul gem")
+    CraftingFramework.CarryableContainer.removeItem {
+        count = 1,
+        item = e.soulGem.item,
+        itemData = e.soulGem.itemData,
+        reference = e.soulGem.reference,
+        playSound = false,
+        updateGUI = true,
+    }
 
     if chance >= roll then
         if EnchantMenu.enchant(e.painting) then
