@@ -345,6 +345,13 @@ See MCM to configure this.
                 -- onEnchantFailCallback = function()
 
                 -- end,
+                skillTooltipCallback = function()
+                    log:trace("Creating tooltip for skill")
+                    UIHelper.createTooltipMenu {
+                        header = "Painting Skill",
+                        text = "The Painting skill level at the time that this painting was painted.\nEvery art style/medium has a skill threshold, below which the enchant chance is reduced. Usually the best chance requires ~50 Painting skill.",
+                    }
+                end,
                 borderSides = e.borderSides,
                 addDivider = e.addDivider,
             }
@@ -362,6 +369,7 @@ end
 ---@field painting JOP.Painting|JOP.Sketchbook.sketch
 ---@field enchantChanceTooltipCallback function?
 ---@field confirmEnchantTooltipCallback function?
+---@field skillTooltipCallback function?
 ---@field onEnchantSuccessCallback function?
 ---@field onEnchantFailCallback function?
 ---@field borderSides number?
@@ -392,11 +400,19 @@ function EnchantMenu:createEnchantBlock(e)
     headerRow.flowDirection = "left_to_right"
 
     local header = headerRow:createLabel { text = "Enchant" }
-    header.childAlignX = 0.5
     header.autoWidth = true
+    header.justifyText = tes3.justifyText.left
 
     local spacer = headerRow:createBlock()
     spacer.widthProportional = 1.0
+
+    local skill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(e.painting))
+    if skill then
+        log:trace("Skill for skill label: %s", skill)
+        local skillLabel = headerRow:createLabel { text = string.format("Skill Level: %s", skill) }
+        skillLabel.autoWidth = true
+        skillLabel:register(tes3.uiEvent.help, e.skillTooltipCallback)
+    end
 
     --body
     local border = block_outer:createThinBorder {}

@@ -113,7 +113,7 @@ end
 ---@return number? skill Will be nil if there is no stored data on the given painting
 function PaintingRegistry.skillWhenPainted(paintingId)
     local data = PaintingRegistry.getPaintingData(paintingId)
-    if data then
+    if data and data.skill then
         return data.skill
     end
     return nil
