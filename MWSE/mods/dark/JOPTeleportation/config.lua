@@ -141,13 +141,14 @@ local function registerModConfig()
     category_balance:createPercentageSlider({
         label = "Base enchant success chance",
         configKey = "baseChance",
-        description = "The minimum chance enchanting a frame will work, before any modifiers applied.\nNote that the final chance may be lower than this value if the soul is weak and/or Enchant skill is low."
+        description = "The minimum chance enchanting a frame will work, before any modifiers applied.\nNote that the final chance may be lower than this value if the soul is weak and/or Enchant skill is low.",
     })
 
     category_balance:createSlider({
         label = "Minimum soul strength",
         configKey = "minSoulStrength",
         max = 1600,
+        jump = 100,
         step = 10,
         description = "The minimum strength of a trapped soul for a soul gem to be valid for enchanting."
     })
@@ -156,6 +157,7 @@ local function registerModConfig()
         label = "Optimal soul strength",
         configKey = "optimalSoulValue",
         max = 1600,
+        jump = 100,
         step = 10,
         description = "Souls of this value or greater will have the highest chance of success.",
     })
@@ -163,7 +165,7 @@ local function registerModConfig()
     category_balance:createSlider({
         label = "Optimal Enchant level",
         configKey = "optimalEnchantLevel",
-        max = 100,
+        max = 200,
         description = "Enchanting a frame with an Enchant skill below this value will result in decreased success chance. Above this value will increase the chance.",
     })
 
