@@ -132,7 +132,7 @@ function EnchantMenu.attemptEnchant(e)
             tes3.messageBox("Successfully enchanted painting.")
             tes3.playSound {
                 reference = tes3.player,
-                sound = "mysticism hit"
+                sound = "enchant success"
             }
             return true
         end
@@ -141,7 +141,7 @@ function EnchantMenu.attemptEnchant(e)
     tes3.messageBox("Enchantment failed!")
     tes3.playSound {
         reference = tes3.player,
-        sound = "miss"
+        sound = "enchant fail"
     }
     return false
 end
