@@ -11,7 +11,6 @@ JOPT_MagicItemBorders = {
     Both = 3,
 }
 ---@class JOPT_Config
----@field metadata MWSE.Metadata?
 ---@field logLevel mwseLogger.logLevel|mwseLogger.logLevelString
 ---@field minSoulStrength integer Minimum strength to filter soul gems using
 ---@field baseChance number The base chance before all other contributions are added
@@ -58,16 +57,17 @@ if not config then
 end
 log.level = config.logLevel
 
-
+---@type MWSE.Metadata
+local metadata
 if toml.loadMetadata then
-    config.metadata = toml.loadMetadata("Joy Of Painting Teleportation")
+    metadata = toml.loadMetadata("Joy Of Painting Teleportation")
 else
-    config.metadata = toml.loadFile("Data Files\\Joy Of Painting Teleportation-metadata.toml")
+    metadata = toml.loadFile("Data Files\\Joy Of Painting Teleportation-metadata.toml")
 end
-if not config.metadata then
+if not metadata then
     log:warn("Failed to load metadata.toml")
     ---@diagnostic disable missing-fields
-    config.metadata = {
+    metadata = {
         package = {
             name = "Joy Of Painting Teleportation",
         }
@@ -87,8 +87,8 @@ end
 
 ---@param sidebar mwseMCMMouseOverPage
 local function doSidebar(sidebar)
-    sidebar:createCategory(config.metadata.package.name)
-    sidebar:createInfo { text = config.metadata.package.description }
+    sidebar:createCategory(metadata.package.name)
+    sidebar:createInfo { text = metadata.package.description }
 
     local linksCategory = sidebar:createCategory("Links")
     linksCategory:createHyperlink { text = "Joy Of Painting (Required)", url = "https://www.nexusmods.com/morrowind/mods/53036" }
