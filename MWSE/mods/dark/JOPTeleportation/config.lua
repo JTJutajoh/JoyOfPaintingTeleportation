@@ -21,6 +21,7 @@ JOPT_MagicItemBorders = {
 ---@field disallowedArtStyles any
 ---@field valueMultiplier number
 ---@field minPaintingSkill integer
+---@field enchantProgressGain number
 ---@field tooltipToggle boolean
 ---@field enchantedLabelColor mwseColorTable
 ---@field locationNameTruncateLength integer
@@ -42,6 +43,7 @@ local defaultConfig = {
     disallowedArtStyles = { ["Charcoal Drawing"] = true, },
     valueMultiplier = 2.5,
     minPaintingSkill = 50,
+    enchantProgressGain = 50,
     tooltipToggle = true,
     enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
     locationNameTruncateLength = 30,
@@ -239,6 +241,15 @@ Set this to 0% to disable this penalty altogether.
         decimalPlaces = 2,
         jump = 0.25,
         step = 0.05,
+    })
+
+    category_balance:createSlider({
+        label = "Enchant XP gained per enchantment",
+        configKey = "enchantProgressGain",
+        description = "The amount of vanilla Enchant skill XP gained every time you successfully enchant a painting.\n\n1 level is 100 XP.",
+        max = 500,
+        jump = 10,
+        step = 1,
     })
 
     -- Appearance

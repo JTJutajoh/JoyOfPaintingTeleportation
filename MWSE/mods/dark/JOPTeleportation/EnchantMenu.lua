@@ -341,6 +341,12 @@ See MCM to configure this.
                     }
                     
                     EnchantMenu.multiplyValue(e.painting)
+
+                    local player = tes3.mobilePlayer --[[@as tes3mobilePlayer]]
+                    if player and player.exerciseSkill then
+                        log:info("Giving the player Enchant XP")
+                        player:exerciseSkill(tes3.skill["enchant"], config.enchantProgressGain)
+                    end
                 end,
                 -- onEnchantFailCallback = function()
 
