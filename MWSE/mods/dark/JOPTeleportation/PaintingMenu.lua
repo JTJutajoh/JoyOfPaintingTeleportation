@@ -13,7 +13,9 @@ if not Painting then return end
 ---@param painting JOP.Painting
 ---@return boolean
 local function isEnchantAllowed(painting)
-    return (not config.disallowedArtStyles[painting.data.artStyle] == true) and (PaintingRegistry.skillWhenPainted(painting.id) or 100 >= config.minPaintingSkill)
+    return (not config.disallowedArtStyles[painting.data.artStyle] == true)
+        and (PaintingRegistry.skillWhenPainted(painting.id) or 100 >= config.minPaintingSkill)
+        and (painting.data.location and painting.data.location.position and painting.data.location.cellId)
 end
 
 ---@type fun(self: JOP.Painting)
