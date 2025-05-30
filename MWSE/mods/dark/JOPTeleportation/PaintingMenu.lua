@@ -5,6 +5,7 @@ if not config then return end
 local log = mwse.Logger.new("JOPT - Painting Menu")
 
 local EnchantMenu = include("dark.JOPTeleportation.EnchantMenu")
+local PaintingRegistry = include("dark.JOPTeleportation.PaintingRegistry")
 
 ---@type JOP.Painting
 local Painting = require("mer.joyOfPainting.items.Painting")
