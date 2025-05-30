@@ -19,6 +19,6 @@ Check the MCM to fine-tune the behavior of the mod.
 
 ## Compatibility
 
-Has a compatibility patch for **Seph's Inventory Decorator**: https://www.nexusmods.com/morrowind/mods/50582 Enchanted paintings will try to match the appearance of a enchanted equipment as defined by that mod. If you do not have that mod installed, there will be settings in the MCM that mimic it for paintings.
+Has a compatibility patch for **Seph's Inventory Decorator**: https://www.nexusmods.com/morrowind/mods/50582 Enchanted paintings will try to match the appearance of enchanted equipment as defined by that mod. If you do not have that mod installed, there will be settings in the MCM that mimic it for paintings.
 
 Mod is purely MWSE Lua and pluginless so there should be no compatibility issues. Please let me know if you think you've found one.
