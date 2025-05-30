@@ -190,7 +190,7 @@ function EnchantMenu.calcEnchantChance(soulValue, painting)
     log:trace("Calculating enchant chance")
     log:trace("Base chance: %f", config.baseChance)
 
-    local soulMult = 1.3 -- Higher values increase the penalty that weak souls incur
+    local soulMult = 1.2 -- Higher values increase the penalty that weak souls incur
     local enchantMult = 1.2 -- Higher values increase the penalty for being below the optimal enchant level
     local paintingMult = 0.4 -- Lower values increase the penalty for being below the optimal painting level
 
@@ -203,12 +203,12 @@ function EnchantMenu.calcEnchantChance(soulValue, painting)
     log:trace("Enchant skill contribution: %f", enchantContribution)
 
     local artStyleOptimalLevel = JOPConfig.artStyles[painting.data.artStyle].maxDetailSkill
-    local paintingSkill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(painting))
+    local paintingSkill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(painting)) or 100
     local paintingContribution = math.min((paintingSkill / artStyleOptimalLevel), 1) * paintingMult
     log:trace("Painting skill contribution : %f", paintingContribution)
     log:trace("Minimum chance: %f", config.minChance)
 
-    return math.max((config.baseChance + enchantContribution + paintingContribution) * 0.7 + soulContribution, config.minChance)
+    return math.max((config.baseChance + enchantContribution + paintingContribution) * 0.75 + soulContribution, config.minChance)
 end
 
 --- Opens a CraftingFramework selection menu filtering for valid soul gems
