@@ -6,5 +6,7 @@
 !MWSE/mods/
 !MWSE/mods/dark/
 !MWSE/mods/dark/**
+!Docs/
+!Docs/JOPTeleportation.md
 MWSE/mods/dark/editorconfig
 MWSE/mods/dark/JOPTeleportation/todo.md
