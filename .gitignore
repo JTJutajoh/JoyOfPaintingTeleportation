@@ -2,6 +2,7 @@
 *
 
 !.gitignore
+!readme.md
 !MWSE/
 !MWSE/mods/
 !MWSE/mods/dark/
