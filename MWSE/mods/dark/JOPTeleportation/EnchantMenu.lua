@@ -148,6 +148,15 @@ end
 
 ---@param location JOP.Painting.location
 function EnchantMenu.teleport(location)
+    if config.noCombatTeleport and tes3.mobilePlayer and tes3.mobilePlayer.inCombat then
+        log:info("Blocking teleport because of combat.")
+
+        tes3.messageBox {
+            message = "Unable to teleport while in combat.",
+        }
+        return
+    end
+
     log:debug("Attempting to teleport to painting")
     
     if location and location.cellId and location.position and location.orientation then

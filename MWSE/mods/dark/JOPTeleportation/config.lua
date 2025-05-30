@@ -22,6 +22,7 @@ JOPT_MagicItemBorders = {
 ---@field valueMultiplier number
 ---@field minPaintingSkill integer
 ---@field enchantProgressGain number
+---@field noCombatTeleport boolean
 ---@field tooltipToggle boolean
 ---@field enchantedLabelColor mwseColorTable
 ---@field locationNameTruncateLength integer
@@ -44,6 +45,7 @@ local defaultConfig = {
     valueMultiplier = 2.5,
     minPaintingSkill = 50,
     enchantProgressGain = 50,
+    noCombatTeleport = false,
     tooltipToggle = true,
     enchantedLabelColor = { r = 0.5, g = 0.35, b = 0.6 },
     locationNameTruncateLength = 30,
@@ -250,6 +252,12 @@ Set this to 0% to disable this penalty altogether.
         max = 500,
         jump = 10,
         step = 1,
+    })
+
+    category_balance:createYesNoButton({
+        label = "Disable teleporting during combat",
+        configKey = "noCombatTeleport",
+        description = "Whether or not the teleport function will be allowed while the player is in combat."
     })
 
     -- Appearance
