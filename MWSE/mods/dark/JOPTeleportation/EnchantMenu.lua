@@ -92,6 +92,7 @@ function EnchantMenu.enchant(paintingHolder)
     if paintingId then
         PaintingRegistry.storePaintingIsEnchanted(paintingId, true)
         log:debug("Set %s as enchanted", paintingId)
+        event.trigger("JOPT.EnchantedPainting", { id = paintingId })
         return true
     else
         log:warn("Failed to mark '%s' as enchanted, invalid paintingId", paintingHolder.id)
@@ -185,6 +186,7 @@ function EnchantMenu.teleport(location)
                 menu:destroy()
             end
         end
+        event.trigger("JOPT.Teleport")
     else
         log:error("Failed to teleport to location: %s", function() return json.encode(location or {}) end)
         tes3.messageBox("Teleport error (Check MWSE.log)")
@@ -247,6 +249,7 @@ function EnchantMenu.chooseSoulGem(callback)
                 }
                 log:trace("Calling callback with chosen soul gem")
                 if callback then callback(chosenSoulGem) end
+                event.trigger("JOPT.ChoseSoulGem")
             else
                 log:warn("itemData on %s not found", e.item.name)
                 if callback then callback(nil) end
@@ -446,7 +449,7 @@ function EnchantMenu:createEnchantBlock(e)
 
     soul_block:createLabel { text = "Soul" }
 
-    local item_border = soul_block:createThinBorder( { id = "JOPT.SoulGemBorder" })
+    local item_border = soul_block:createThinBorder({ id = "JOPT.SoulGemBorder" })
     item_border.height = 48
     item_border.width = 48
     item_border.flowDirection = "top_to_bottom"
@@ -602,6 +605,7 @@ function EnchantMenu:createEnchantBlock(e)
     end
 
     log:trace("Enchant menu creation completed")
+    event.trigger("JOPT.EnchantMenuCreated")
 end
 
 ---@class JOPT.EnchantMenu.createTeleportBlock.params
@@ -654,6 +658,7 @@ function EnchantMenu:createTeleportBlock(e)
         log:trace("Teleport button clicked")
         if e.teleportCallback then e.teleportCallback(location) end
     end)
+    event.trigger("JOPT.TeleportMenuCreated")
 end
 
 return EnchantMenu
