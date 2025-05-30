@@ -40,8 +40,8 @@ function Painting:paintingMenu()
             local enchantMenu = EnchantMenu:new {
                 painting = self,
                 parent = menu,
-                addDivider = true,
-                borderSides = 20,
+                addDivider = false,
+                borderSides = 8,
             }
         else
             log:error("Failed to find the name painting menu after it should have been created.")

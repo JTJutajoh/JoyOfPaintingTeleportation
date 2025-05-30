@@ -322,13 +322,8 @@ function EnchantMenu:new(e)
                     UIHelper.createTooltipMenu {
                         header = "Chance of success",
                         text = [[
-Chance that the painting will successfully be enchanted.
-The soul gem will be consumed either way.
-
-Takes into account:
-Soul strength, player Enchant skill, and Painting skill when the painting was made.
-
-See MCM to configure this.
+Based on: Soul strength, Enchant skill, and Painting skill at the time the painting was painted.
+(Configurable in MCM)
 ]],
                     }
                 end,
@@ -364,7 +359,10 @@ See MCM to configure this.
                     log:trace("Creating tooltip for skill")
                     UIHelper.createTooltipMenu {
                         header = "Painting Skill",
-                        text = "The Painting skill level at the time that this painting was painted.\nEvery art style/medium has a skill threshold, below which the enchant chance is reduced. Usually the best chance requires ~50 Painting skill.",
+                        text = [[
+At the time that the painting was painted, NOT current level.
+Depends on the art style/medium. Usually the best chance requires ~50 Painting skill.
+]],
                     }
                 end,
                 borderSides = e.borderSides,
@@ -398,7 +396,10 @@ function EnchantMenu:createEnchantBlock(e)
     ---@type JOPT.EnchantMenu.SoulGem?
     local soulGem
 
-    local block_outer = e.parent:createBlock()
+    ---@type boolean
+    local collapsed = true
+
+    local block_outer = e.parent:createBlock({ id = "JOPT.EnchantOuterBlock" })
     block_outer.autoHeight = true
     block_outer.widthProportional = 1.0
     block_outer.flowDirection = "top_to_bottom"
@@ -406,67 +407,59 @@ function EnchantMenu:createEnchantBlock(e)
     block_outer.borderTop = 6
     block_outer.borderLeft = e.borderSides or 50
     block_outer.borderRight = e.borderSides or 50
+
+    --enchant button
+    local button_enchant = block_outer:createButton { text = "Enchant", id = "JOPT.CollapseButton" }
+    button_enchant.borderAllSides = 8
+    button_enchant.paddingTop = 8
+    button_enchant.paddingBottom = 8
+    button_enchant.paddingLeft = 24
+    button_enchant.paddingRight = 24
+
     if e.addDivider then block_outer:createDivider() end
-
-    --header
-    local headerRow = block_outer:createBlock {}
-    headerRow.widthProportional = 1.0
-    headerRow.autoHeight = true
-    headerRow.flowDirection = "left_to_right"
-
-    local header = headerRow:createLabel { text = "Enchant" }
-    header.autoWidth = true
-    header.justifyText = tes3.justifyText.left
-
-    local spacer = headerRow:createBlock()
-    spacer.widthProportional = 1.0
-
-    local skill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(e.painting))
-    if skill then
-        log:trace("Skill for skill label: %s", skill)
-        local skillLabel = headerRow:createLabel { text = string.format("Skill Level: %s", skill) }
-        skillLabel.autoWidth = true
-        skillLabel:register(tes3.uiEvent.help, e.skillTooltipCallback)
-    end
 
     --body
     local border = block_outer:createThinBorder {}
-    border.flowDirection = "left_to_right"
-    border.widthProportional = 1.0
+    border.flowDirection = "top_to_bottom"
+    -- border.widthProportional = 1.0
+    border.width = 300
     border.autoHeight = true
-    border.minHeight = 32
-    border.minWidth = 400
-    border.childAlignX = 0
-    border.childAlignY = 0.5
     border.paddingAllSides = 8
     border.borderAllSides = 4
+    border.childAlignX = 0.5
 
-    border:createLabel { text = "Soul" }
+    local block_inner = border:createBlock()
+    block_inner.flowDirection = "left_to_right"
+    block_inner.autoHeight = true
+    block_inner.widthProportional = 1.0
+    block_inner.childAlignY = 0.5
+    block_inner.paddingLeft = 16
+    block_inner.paddingRight = 16
 
     --soul gem
-    local item_border = border:createThinBorder()
+    local soul_block = block_inner:createBlock()
+    soul_block.flowDirection = "top_to_bottom"
+    soul_block.childAlignY = 0.5
+    soul_block.childAlignX = 0.5
+    soul_block.autoHeight = true
+    soul_block.autoWidth = true
+
+    soul_block:createLabel { text = "Soul" }
+
+    local item_border = soul_block:createThinBorder( { id = "JOPT.SoulGemBorder" })
     item_border.height = 48
     item_border.width = 48
     item_border.flowDirection = "top_to_bottom"
     item_border.childAlignX = 0.5
     item_border.childAlignY = 0.5
-    item_border.borderAllSides = 10
+    item_border.borderAllSides = 2
     item_border.paddingAllSides = 4
 
-    local item_icon = item_border:createImage()
-    item_icon.widthProportional = 1.0
-    item_icon.heightProportional = 1.0
+    local item_icon = item_border:createImage({ id = "JOPT.SoulGemIcon" })
     item_icon.width = 40
     item_icon.height = 40
     item_icon.scaleMode = true
     item_icon.alpha = 0
-
-    local noSoulText = "Select a sufficiently filled soul gem"
-    local soulDetails = border:createLabel { text = noSoulText }
-    soulDetails.widthProportional = 1.0
-    soulDetails.autoHeight = true
-    soulDetails.borderLeft = 8
-    soulDetails.wrapText = true
 
     -- Define this early so that it can be referenced in the closure below
     local button_confirm
@@ -488,10 +481,6 @@ function EnchantMenu:createEnchantBlock(e)
 
                 local soul = soulGem.itemData.soul --[[@as JOPT.tes3soulOwner]]
                 log:trace("Contained soul: %s", soul.name)
-
-                local details = string.format("%s (%s)\nStrength: %i", soulGem.item.name, soul.name, soul.soul)
-                log:trace("Soul details: %s", details)
-                soulDetails.text = details
                 
                 local chance = EnchantMenu.calcEnchantChance(soul.soul, e.painting)
                 log:trace("Enchant chance: %f", chance)
@@ -503,7 +492,6 @@ function EnchantMenu:createEnchantBlock(e)
                 log:debug("No valid soul gem chosen, clearing all UI elements")
                 item_icon.contentPath = nil
                 item_icon.alpha = 0
-                soulDetails.text = noSoulText
                 enchantChance.text = "Chance: 0%"
                 button_confirm.disabled = true
             end
@@ -520,24 +508,59 @@ function EnchantMenu:createEnchantBlock(e)
         end
     end)
 
+    local block_details = block_inner:createBlock({ id = "JOPT.EnchantDetails" })
+    block_details.autoHeight = true
+    block_details.widthProportional = 1.0
+    block_details.flowDirection = "top_to_bottom"
+    block_details.childAlignX = 0.5
+    block_details.borderLeft = 4
+
+    local paintingSkill = PaintingRegistry.skillWhenPainted(EnchantMenu.getPaintingID(e.painting))
+    if paintingSkill then
+        log:trace("Skill for skill label: %s", paintingSkill)
+        local paintingSkillLabel = block_details:createLabel { text = string.format("Painting skill: %s", paintingSkill), id = "JOPT.PaintingSkillLabel" }
+        paintingSkillLabel:register(tes3.uiEvent.help, e.skillTooltipCallback)
+    end
+
+    local enchantSkill = tes3.mobilePlayer.enchant.current
+    if enchantSkill then
+        local enchantSkillLabel = block_details:createLabel { text = string.format("Enchant skill: %s", enchantSkill), id = "JOPT.EnchantSkillLabel" }
+    end
+
+    if enchantSkill or paintingSkill then
+        block_details:createDivider()
+    end
+
+    enchantChance = block_details:createLabel { text = "Chance: 0%", id = "JOPT.ChanceLabel" }
+    enchantChance:register("help", e.enchantChanceTooltipCallback)
 
     --buttons
-    local button_block = block_outer:createBlock {}
-    button_block.widthProportional = 1.0
+    local button_block = border:createBlock { id = "JOPT.EnchantButtonBlock" }
     button_block.autoHeight = true
-    button_block.childAlignX = 1.0
+    button_block.autoWidth = true
     button_block.flowDirection = "left_to_right"
+    button_block.borderTop = 6
 
-    enchantChance = button_block:createLabel { text = "Chance: 0%" }
-    enchantChance:register("help", e.enchantChanceTooltipCallback)
-    enchantChance.childAlignX = 0
-    enchantChance.autoWidth = true
+    local button_cancel = button_block:createButton { text = "Cancel", id = "JOPT.CancelEnchantButton" }
+    button_cancel.paddingAllSides = 6
+    button_cancel.borderLeft = 12
+    button_cancel.borderRight = 12
+    button_cancel:register("mouseClick", function()
+        collapsed = true
+        button_enchant.visible = true
+        border.visible = false
+        log:debug("Clearing chosen soul gem")
+        soulGem = nil
+        item_icon.contentPath = nil
+        item_icon.alpha = 0
+        enchantChance.text = "Chance: 0%"
+        button_confirm.disabled = true
+    end)
 
-    local button_spacer = button_block:createBlock()
-    button_spacer.widthProportional = 1.0
-
-    button_confirm = button_block:createButton { text = "Enchant" }
+    button_confirm = button_block:createButton { text = "Enchant", id = "JOPT.ConfirmEnchantButton" }
     button_confirm.paddingAllSides = 6
+    button_confirm.borderLeft = 12
+    button_confirm.borderRight = 12
     button_confirm.disabled = true
     button_confirm:register("mouseClick", function()
         log:trace("Enchant button clicked")
@@ -549,7 +572,6 @@ function EnchantMenu:createEnchantBlock(e)
         soulGem = nil
         item_icon.contentPath = nil
         item_icon.alpha = 0
-        soulDetails.text = noSoulText
         enchantChance.text = "Chance: 0%"
         button_confirm.disabled = true
 
@@ -562,6 +584,23 @@ function EnchantMenu:createEnchantBlock(e)
         end
     end)
     button_confirm:register("help", e.confirmEnchantTooltipCallback)
+
+
+    button_enchant:register("mouseClick", function()
+        collapsed = false
+        button_enchant.visible = false
+        border.visible = true
+    end)
+
+
+    if collapsed then
+        button_enchant.visible = true
+        border.visible = false
+    else
+        button_enchant.visible = false
+        border.visible = true
+    end
+
     log:trace("Enchant menu creation completed")
 end
 
@@ -576,7 +615,7 @@ end
 function EnchantMenu:createTeleportBlock(e)
     log:debug("Creating teleport block, parent: %s", e.parent.name)
 
-    local block_outer = e.parent:createBlock()
+    local block_outer = e.parent:createBlock({ id = "JOPT.TeleportOuterBlock" })
     block_outer.autoHeight = true
     block_outer.widthProportional = 1.0
     block_outer.flowDirection = "top_to_bottom"
@@ -598,13 +637,14 @@ function EnchantMenu:createTeleportBlock(e)
     local cellName = location.cellName or location --[[@as string]]
     local coords = string.format("(%i, %i, %i)", location.position.x, location.position.y, location.position.z)
     local header = block_outer:createLabel {
-        text = string.format("Magically linked to %s, %s", cellName, coords)
+        text = string.format("Magically linked to %s, %s", cellName, coords),
+        id = "JOPT.DestinationLabel"
     }
     header.widthProportional = 1.0
     header.autoHeight = true
     header.wrapText = true
 
-    local button_teleport = block_outer:createButton { text = "Recall" }
+    local button_teleport = block_outer:createButton { text = "Recall", id = "JOPT.TeleportButton" }
     button_teleport.borderAllSides = 8
     button_teleport.paddingTop = 8
     button_teleport.paddingBottom = 8
