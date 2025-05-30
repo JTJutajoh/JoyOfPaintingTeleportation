@@ -509,6 +509,17 @@ function EnchantMenu:createEnchantBlock(e)
             end
         end)
     end)
+    item_border:register(tes3.uiEvent.help, function()
+        if soulGem then
+            tes3ui.createTooltipMenu {
+                object = soulGem.item,
+                itemData = soulGem.itemData,
+            }
+        else
+
+        end
+    end)
+
 
     --buttons
     local button_block = block_outer:createBlock {}
