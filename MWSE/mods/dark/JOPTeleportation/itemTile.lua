@@ -48,6 +48,10 @@ end
 
 ---@param e itemTileUpdatedEventData
 local function doEnchantedItemTile(e)
+    if not e.item then
+        log:error("Tried to update an item tile but the item was invalid")
+        return
+    end
     log:trace("Drawing magic border on item %s", e.item.name)
 
     -- First fetch all settings from this mod's config
@@ -70,7 +74,7 @@ local function doEnchantedItemTile(e)
         magicItemIconEffectY = config_inventoryDecorator.effectIconPositionY / 100
     end
 
-    if doMagicEffectIcon then
+    if e.element and doMagicEffectIcon then
         -- Ensure that the icon is only added to the tile once
         if not e.element:findChild("JOPT_MagicEffectIcon") then
             local iconPath = "Icons/" .. tes3.getMagicEffect(tes3.effect.recall)[magicItemIconEffectStyle]
@@ -87,10 +91,11 @@ local function doEnchantedItemTile(e)
         end
     else
         -- Remove the icon if we added it previously (such as if the setting was changed)
+        if not e.element then return end
         local icon = e.element:findChild("JOPT_MagicEffectIcon")
         if icon then icon:destroy() end
     end
-    if doMagicBorder then
+    if e.element and doMagicBorder then
         -- Ensure that the border is only added to the tile once
         if not e.element:findChild("JOPT_MagicBorder") then
             local border = e.element:createImage { id = "JOPT_MagicBorder", path = "Textures/menu_icon_magic.dds" }
@@ -107,6 +112,7 @@ local function doEnchantedItemTile(e)
         end
     else
         -- Remove the border if we added it previously (such as if the setting was changed)
+        if not e.element then return end
         local border = e.element:findChild("JOPT_MagicBorder")
         if border then border:destroy() end
     end
